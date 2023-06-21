@@ -16,9 +16,30 @@ end
 
 function populate_grid_ggd()
     dd = OMAS.dd()
-    resize!(dd.edge_profiles, 1)
+    println("another fun function!!!!!!!!!!")
     resize!(dd.edge_profiles.grid_ggd, 1)
-    dd.edge_profiles.grid_ggd[1].identifier.name = "Sven"
+
+    id = dd.edge_profiles.grid_ggd[1].identifier
+    id.name = "Sven"
+    id.index = 1
+    id.description = "this is a grid"
+
+    resize!(dd.edge_profiles.grid_ggd[1].space, 1)
+    space = dd.edge_profiles.grid_ggd[1].space[1]
+    space.identifier.name = "sp4ce"
+    space.identifier.index = 1
+    space.identifier.description = "The final frontier"
+    space.geometry_type.name = "standard"  # I doubt this is needed
+    space.geometry_type.index = 0  # 0 for standard, 1 for fourier. This is the important field
+    space.geometry_type.description = "trying to hold a b2/solps mesh here"  # I doubt this is needed
+
+    resize!(space.objects_per_dimension, 4)
+    o0 = space.objects_per_dimension[1]  # 0D objects
+    o1 = space.objects_per_dimension[2]  # 1D objects
+    o2 = space.objects_per_dimension[3]  # 2D objects
+    o3 = space.objects_per_dimension[4]  # 3D objects
+
+
     return nothing
 end
 
