@@ -5,6 +5,7 @@ const OMAS = IMASDD
 
 export try_omas
 export populate_grid_ggd
+export generate_test_data
 
 function try_omas()
     println("it's the omas function")
@@ -14,9 +15,76 @@ function try_omas()
     return nothing
 end
 
-function populate_grid_ggd()
+function generate_test_data(nx=94, ny=38, sep=15, lcut=25, rcut=69)
+    """This doesn't work well"""
+    center_r = 1.7
+    center_z = 0.0
+    aminor = 0.6
+    inner_minor = 0.3
+    outer_minor = 0.8
+    elongation = 1.8
+    θₓ = 8 * π/6
+    θᵢ = θₓ - π/4
+    θₒ = θₓ + π/4
+    inner_leg_length = 0.5
+    outer_leg_length = 0.6
+    dx_il = inner_leg_length / lcut
+    dx_ol = outer_leg_length / (nx - rcut)
+    dr_in = (aminor - inner_minor) / sep
+    dr_out = (outer_minor = aminor) / (ny - sep)
+    cell_centers_r = Array{Float64}(undef, ny, nx)
+    cell_centers_z = Array{Float64}(undef, ny, nx)
+    crx = Array{Float64}(undef, 4, ny, nx)
+    cry = Array{Float64}(undef, 4, ny, nx)
+    xpoint_r = center_r + aminor * cos(θₓ)
+    xpoint_z = center_z + aminor * sin(θₓ) * elongation
+    for ix::Int = 1:nx
+        for iy::Int = 1:ny
+            if iy < sep
+                dy = dr_in
+            else
+                dy = dr_out
+            end
+
+            if (ix >= lcut) && (ix <= rcut)
+                a = aminor + (iy - sep + 0.5) * dy
+                θ = θₓ - (ix - lcut) / (rcut - lcut) * 2 * π
+                # println(θ)
+                cell_centers_r[iy, ix] = cos(θ) * a + center_r
+                cell_centers_z[iy, ix] = sin(θ) * a * elongation + center_z
+            elseif ix < lcut
+                cell_centers_r[iy, ix] = xpoint_r + cos(θᵢ) * dx_il * (lcut - ix) + sin(θᵢ) * dy * (iy - sep)
+                cell_centers_z[iy, ix] = xpoint_z + sin(θᵢ) * dx_il * (lcut - ix) + cos(θᵢ) * dy * (iy - sep)
+            else
+                cell_centers_r[iy, ix] = xpoint_r + cos(θₒ) * dx_ol * (ix - rcut) + sin(θₒ) * dy * (iy - sep)
+                cell_centers_z[iy, ix] = xpoint_z + sin(θₒ) * dx_ol * (ix - rcut) + cos(θₒ) * dy * (iy - sep)
+            end
+        end
+    end
+    # Sanitize
+    rmin = 0.0
+    rmax = 3.0
+    zmin = -3.0
+    zmax = 3.0
+    for i::Int = 1:nx*ny
+        # if mod(i, nx) == 0
+        #     print(cell_centers_r[i], " ", cell_centers_r[i] > rmax, " ", rmax)
+        # end
+        cell_centers_r[i] = cell_centers_r[i] > rmax ? rmax : cell_centers_r[i]
+        cell_centers_z[i] = cell_centers_z[i] > zmax ? zmax : cell_centers_z[i]
+        cell_centers_r[i] = cell_centers_r[i] < rmin ? rmin : cell_centers_r[i]
+        cell_centers_z[i] = cell_centers_z[i] < zmin ? zmin : cell_centers_z[i]
+        # if (mod(i, nx) == 0)
+        #     println(" ", cell_centers_r[i])
+        # end
+    end
+    return (cell_centers_r, cell_centers_z)
+end
+
+function populate_grid_ggd(nx::Int64, ny::Int64)
+    ncell = nx * ny
     dd = OMAS.dd()
-    println("another fun function!!!!!!!!!!")
+    println("another fun function!!!!!11!!!!!")
     resize!(dd.edge_profiles.grid_ggd, 1)
 
     id = dd.edge_profiles.grid_ggd[1].identifier
@@ -39,6 +107,16 @@ function populate_grid_ggd()
     o2 = space.objects_per_dimension[3]  # 2D objects
     o3 = space.objects_per_dimension[4]  # 3D objects
 
+    resize!(o0.object, ncell * 4)  # Points
+    resize!(o1.object, ncell * 4)  # Edges
+    resize!(o2.object, ncell)  # Faces
+    resize!(o3.object, ncell)  # Volumes
+    for iy = 1:ny
+        for ix = 1:nx
+            ic::Int = (iy - 1) * nx + ix
+            resize!(o2.object[ic].boundary, 4)
+        end # for ix
+    end # for iy
 
     return nothing
 end
