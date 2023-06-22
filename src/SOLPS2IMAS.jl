@@ -1,11 +1,13 @@
 module SOLPS2IMAS
 
+# using DelimitedFiles
 using IMASDD
 const OMAS = IMASDD
 
 export try_omas
 export populate_grid_ggd
 export generate_test_data
+export read_b2_output
 
 function try_omas()
     println("it's the omas function")
@@ -79,6 +81,74 @@ function generate_test_data(nx=94, ny=38, sep=15, lcut=25, rcut=69)
         # end
     end
     return (cell_centers_r, cell_centers_z)
+end
+
+function read_b2_output(filename)
+    # x = readdlm(filename, ' ', Float64, '\n', header=true)  # Doesn't handle the text lines at the start of each array
+    contents = Dict()
+    lines = open(filename) do f
+        readlines(f)
+    end
+    nx = 0
+    ny = 0
+    ns = 0
+    tag = ""
+    arraysize = 0
+    arraytype = nothing
+    j = 1
+    for l in lines
+        if startswith(l, "*cf:")
+            # Cleanup previous array if applicable
+            if tag != ""
+                if arraysize == nx * ny
+                    println(tag, " ", arraysize, " ", nx, " ", ny, " ", size(contents[tag]))
+                    print(contents[tag])
+                    contents[tag] = reshape(contents[tag], (ny, nx))
+                elseif arraysize == nx * ny * ns
+                    contents[tag] = reshape(contents[tag], (ns, ny, nx))
+                elseif arraysize == nx * ny * 2
+                    contents[tag] = reshape(contents[tag], (2, ny, nx))
+                elseif arraysize == nx * ny * 2 * ns
+                    contents[tag] = reshape(contents[tag], (ns, 2, ny, nx))
+                end
+            end
+            j = 1  # Reset intra-array element counter
+            _, arraytype, arraysize, tag = split(l)
+            arraysize = parse(Int, arraysize)
+            if arraytype == "char"
+                contents[tag] = ""
+            elseif arraytype == "int"
+                contents[tag] = Array{Int}(undef, arraysize)
+            else
+                contents[tag] = Array{Float64}(undef, arraysize)
+            end
+            println(l, ", ", arraytype, ", ", arraysize, ", ", tag)
+        elseif tag != ""
+            if arraytype == "int"
+                array_line = [parse(Int, ss) for ss in split(l)]
+                array_inc = size(array_line)[1]
+            elseif arraytype == "real"
+                array_line = [parse(Float64, ss) for ss in split(l)]
+                array_inc = size(array_line)[1]
+            else
+                array_line = l
+                array_inc = 1
+            end
+            if arraytype == "char"
+                contents[tag] = array_line
+            else
+                contents[tag][j:j+array_inc-1] = array_line
+            end
+            j += array_inc
+
+            if tag == "nx,ny,ns"
+                nx, ny, ns = array_line
+                nx += 2
+                ny += 2
+            end
+        end
+    end
+    return contents
 end
 
 function populate_grid_ggd(nx::Int64, ny::Int64)
