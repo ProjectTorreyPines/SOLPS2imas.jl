@@ -1,0 +1,1 @@
+These sample files have been reduced to save space. Some fields have been deleted and some arrays have been decimated. These files are suitable for limited testing only.
