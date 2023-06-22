@@ -101,10 +101,13 @@ function read_b2_output(filename)
             # Cleanup previous array if applicable
             if tag != ""
                 if arraysize == nx * ny
-                    println(tag, " ", arraysize, " ", nx, " ", ny, " ", size(contents[tag]))
-                    print(contents[tag])
+                    # println(tag, " ", arraysize, " ", nx, " ", ny, " ", size(contents[tag]))
+                    # print(contents[tag])
                     contents[tag] = reshape(contents[tag], (ny, nx))
                 elseif arraysize == nx * ny * ns
+                    # If ns == 2, then r,z vector arrays can't be distinguished
+                    # from species-dependent quantities by their shapes. But
+                    # they get treated the same way, so it's okay.
                     contents[tag] = reshape(contents[tag], (ns, ny, nx))
                 elseif arraysize == nx * ny * 2
                     contents[tag] = reshape(contents[tag], (2, ny, nx))
@@ -122,7 +125,6 @@ function read_b2_output(filename)
             else
                 contents[tag] = Array{Float64}(undef, arraysize)
             end
-            println(l, ", ", arraytype, ", ", arraysize, ", ", tag)
         elseif tag != ""
             if arraytype == "int"
                 array_line = [parse(Int, ss) for ss in split(l)]
@@ -143,8 +145,8 @@ function read_b2_output(filename)
 
             if tag == "nx,ny,ns"
                 nx, ny, ns = array_line
-                nx += 2
-                ny += 2
+                nx += 2  # Account for guard cells
+                ny += 2  # Account for guard cells
             end
         end
     end
