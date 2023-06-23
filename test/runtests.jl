@@ -24,6 +24,18 @@ function test_read_b2_output()
     nx += 2  # Account for guard cells
     ny += 2  # Account for guard cells
     @assert(size(contents["te"]) == (ny, nx))
+
+    filename = "samples/b2fgmtry"
+    contents = read_b2_output(filename)
+    nxg, nyg = contents["nx,ny"]
+    nxg += 2  # Account for guard cells
+    nyg += 2  # Account for guard cells
+    sc = size(contents["crx"])
+    # println("nx=$(nxg), ny=$(nyg), size(contents['crx'])=$(sc)")
+    @assert(size(contents["crx"]) == (4, nyg, nxg))
+    @assert(nyg == ny)
+    @assert(nxg == nx)
+
     return true
 end
 

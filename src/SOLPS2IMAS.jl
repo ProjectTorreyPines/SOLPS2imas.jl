@@ -113,6 +113,8 @@ function read_b2_output(filename)
                     contents[tag] = reshape(contents[tag], (2, ny, nx))
                 elseif arraysize == nx * ny * 2 * ns
                     contents[tag] = reshape(contents[tag], (ns, 2, ny, nx))
+                elseif arraysize == nx * ny * 4
+                    contents[tag] = reshape(contents[tag], (4, ny, nx))
                 end
             end
             j = 1  # Reset intra-array element counter
@@ -143,8 +145,13 @@ function read_b2_output(filename)
             end
             j += array_inc
 
-            if tag == "nx,ny,ns"
+            if tag == "nx,ny,ns"  # This is present in b2fstate
                 nx, ny, ns = array_line
+                nx += 2  # Account for guard cells
+                ny += 2  # Account for guard cells
+            elseif tag == "nx,ny"  # This is present in b2fgmtry
+                nx, ny = array_line
+                ns = 0
                 nx += 2  # Account for guard cells
                 ny += 2  # Account for guard cells
             end
