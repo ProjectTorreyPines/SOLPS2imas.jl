@@ -3,6 +3,7 @@ module SOLPS2IMAS
 # using DelimitedFiles
 using IMASDD
 const OMAS = IMASDD
+using NCDatasets
 
 export try_omas
 export populate_grid_ggd
@@ -83,8 +84,40 @@ function generate_test_data(nx=94, ny=38, sep=15, lcut=25, rcut=69)
     return (cell_centers_r, cell_centers_z)
 end
 
+function read_b2time_output(filename)
+    dim_order = (
+        "time",
+        "ns",
+        "ndir",
+        "ny", "nybl", "nybr", "nya", "nyi",
+        "nx", "nxbl", "nxbr", "nxa", "nxi",
+    )
+    contents = Dict()
+    ds = Dataset(filename)
+    for key in keys(ds.dim)
+        contents[key] = ds.dim[key]
+    end
+    for key in keys(ds)
+        contents[key] = Array(ds[key])
+        d = dimnames(ds[key])
+        permute = [y for y in [findfirst(x->x==dimord, d) for dimord in dim_order] if y !== nothing]
+        #println(key)
+        #println(d, size(contents[key]))
+        #println(permute)
+        #print(key, " ", size(contents[key]), " ")
+        contents[key] = permutedims(contents[key], permute)
+        #println(size(contents[key]))
+    end
+    return contents
+end
+
 function read_b2_output(filename)
     # x = readdlm(filename, ' ', Float64, '\n', header=true)  # Doesn't handle the text lines at the start of each array
+
+    if cmp(splitext(filename)[2], ".nc") == 0
+        return read_b2time_output(filename)
+    end
+
     contents = Dict()
     lines = open(filename) do f
         readlines(f)
@@ -114,6 +147,10 @@ function read_b2_output(filename)
                 elseif arraysize == nx * ny * 2 * ns
                     contents[tag] = reshape(contents[tag], (ns, 2, ny, nx))
                 elseif arraysize == nx * ny * 4
+                    # This case is only applicable to b2fgmtry, so ns will be 0 if this is
+                    # relevant.
+                    # Therefore, this case won't be inappropriately blocked by
+                    # ns * 2 when ns=2
                     contents[tag] = reshape(contents[tag], (4, ny, nx))
                 end
             end

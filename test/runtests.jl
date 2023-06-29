@@ -36,6 +36,15 @@ function test_read_b2_output()
     @assert(nyg == ny)
     @assert(nxg == nx)
 
+    filename = "samples/b2time.nc"
+    contents = read_b2_output(filename)
+    nx = contents["nx"]
+    ny = contents["ny"]
+    nt = contents["time"]
+    print(size(contents["ne2d"]))
+    print((nt, ny, nx))
+    @assert(size(contents["ne2d"]) == (nt, ny, nx))
+
     return true
 end
 
