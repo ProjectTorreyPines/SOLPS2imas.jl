@@ -41,10 +41,13 @@ function test_read_b2_output()
     nx = contents["nx"]
     ny = contents["ny"]
     nt = contents["time"]
-    print(size(contents["ne2d"]))
-    print((nt, ny, nx))
     @assert(size(contents["ne2d"]) == (nt, ny, nx))
 
+    return true
+end
+
+function test_populate_grid_ggd()
+    populate_grid_ggd(94, 32)
     return true
 end
 
@@ -52,4 +55,5 @@ end
     @test try_omas() === nothing
     @test populate_grid_ggd(94, 38) === nothing
     @test test_read_b2_output()
+    @test test_populate_grid_ggd()
 end

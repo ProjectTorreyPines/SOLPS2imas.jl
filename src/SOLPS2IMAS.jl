@@ -1,6 +1,7 @@
 module SOLPS2IMAS
 
 # using DelimitedFiles
+using Revise
 using IMASDD
 const OMAS = IMASDD
 using NCDatasets
@@ -202,35 +203,61 @@ function populate_grid_ggd(nx::Int64, ny::Int64)
     dd = OMAS.dd()
     println("another fun function!!!!!11!!!!!")
     resize!(dd.edge_profiles.grid_ggd, 1)
+    grid_ggd = dd.edge_profiles.grid_ggd
 
-    id = dd.edge_profiles.grid_ggd[1].identifier
+    id = grid_ggd[1].identifier
     id.name = "Sven"
     id.index = 1
     id.description = "this is a grid"
 
-    resize!(dd.edge_profiles.grid_ggd[1].space, 1)
-    space = dd.edge_profiles.grid_ggd[1].space[1]
+    resize!(grid_ggd[1].space, 1)
+    space = grid_ggd[1].space[1]
     space.identifier.name = "sp4ce"
     space.identifier.index = 1
     space.identifier.description = "The final frontier"
     space.geometry_type.name = "standard"  # I doubt this is needed
     space.geometry_type.index = 0  # 0 for standard, 1 for fourier. This is the important field
     space.geometry_type.description = "trying to hold a b2/solps mesh here"  # I doubt this is needed
+    space.coordinates_type = [4, 3]  # r, z
 
     resize!(space.objects_per_dimension, 4)
     o0 = space.objects_per_dimension[1]  # 0D objects
     o1 = space.objects_per_dimension[2]  # 1D objects
     o2 = space.objects_per_dimension[3]  # 2D objects
     o3 = space.objects_per_dimension[4]  # 3D objects
+    resize!(grid_ggd[1].grid_subset, 3)
+    grid_ggd[1].grid_subset[1].dimension = 1
+    grid_ggd[1].grid_subset[1].identifier.name = "nodes"
+    grid_ggd[1].grid_subset[1].identifier.index = 1
+    grid_ggd[1].grid_subset[1].identifier.description = "all points in the domain"
+    grid_ggd[1].grid_subset[2].dimension = 2
+    grid_ggd[1].grid_subset[2].identifier.name = "faces"
+    grid_ggd[1].grid_subset[2].identifier.index = 2
+    grid_ggd[1].grid_subset[2].identifier.description = "All edges in the domain"
+    grid_ggd[1].grid_subset[3].dimension = 3
+    grid_ggd[1].grid_subset[3].identifier.name = "cells"
+    grid_ggd[1].grid_subset[3].identifier.index = 5
+    grid_ggd[1].grid_subset[3].identifier.description = "all 2d cells in the domain"
 
     resize!(o0.object, ncell * 4)  # Points
     resize!(o1.object, ncell * 4)  # Edges
     resize!(o2.object, ncell)  # Faces
     resize!(o3.object, ncell)  # Volumes
+
+    resize!(dd.edge_profiles.ggd,1)
+    ggd = dd.edge_profiles.ggd
+    resize!(ggd[1].electrons.temperature, 2)
+    # the 2 in temperature[2] is for defining Te for cells.
+    ggd[1].electrons.temperature[2].grid_index = 1
+    ggd[1].electrons.temperature[2].grid_subset_index = 2
+    ggd[1].electrons.temperature[2].values = [0.0]
+    resize!(ggd[1].electrons.temperature[2].values, nx*ny)
     for iy = 1:ny
         for ix = 1:nx
             ic::Int = (iy - 1) * nx + ix
-            resize!(o2.object[ic].boundary, 4)
+            o0.object[ic].geometry = [1.0, 2.0]
+            o1.object[ic].nodes = [ic, ic+1]
+            ggd[1].electrons.temperature[2].values[ic] = 1.0#temperature[ic]  # one per cell
         end # for ix
     end # for iy
 
