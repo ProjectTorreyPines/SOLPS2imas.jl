@@ -10,6 +10,7 @@ export try_omas
 export populate_grid_ggd
 export generate_test_data
 export read_b2_output
+export search_points
 
 function try_omas()
     println("it's the omas function")
@@ -198,20 +199,43 @@ function read_b2_output(filename)
     return contents
 end
 
-function populate_grid_ggd(nx::Int64, ny::Int64)
+function search_points(dd, r, z)
+    n = length(r)
+    indices = zeros(Int, n)
+    grid_number = 1
+    space_number = 1
+    subset_idx_node = 1
+    # If an index remains at 0, it means the point in question was not found
+    nodes = dd.edge_profiles.grid_ggd[grid_number].space[space_number].objects_per_dimension[subset_idx_node].object
+    for j = 1:n
+        for i = 1:length(nodes)
+            rn = nodes[i].geometry[1]
+            zn = nodes[i].geometry[2]
+            if (rn == r[j]) && (zn == z[j])
+                indices[j] = i
+                break
+            end
+        end
+    end
+    return indices
+end
+
+function populate_grid_ggd(nx::Int64, ny::Int64, crx, cry, temperature)
     ncell = nx * ny
     dd = OMAS.dd()
     println("another fun function!!!!!11!!!!!")
-    resize!(dd.edge_profiles.grid_ggd, 1)
+    grid_number = 1
+    resize!(dd.edge_profiles.grid_ggd, grid_number)
     grid_ggd = dd.edge_profiles.grid_ggd
+    space_number = 1
 
-    id = grid_ggd[1].identifier
+    id = grid_ggd[grid_number].identifier
     id.name = "Sven"
-    id.index = 1
+    id.index = grid_number
     id.description = "this is a grid"
 
-    resize!(grid_ggd[1].space, 1)
-    space = grid_ggd[1].space[1]
+    resize!(grid_ggd[grid_number].space, space_number)
+    space = grid_ggd[grid_number].space[space_number]
     space.identifier.name = "sp4ce"
     space.identifier.index = 1
     space.identifier.description = "The final frontier"
@@ -225,39 +249,60 @@ function populate_grid_ggd(nx::Int64, ny::Int64)
     o1 = space.objects_per_dimension[2]  # 1D objects
     o2 = space.objects_per_dimension[3]  # 2D objects
     o3 = space.objects_per_dimension[4]  # 3D objects
-    resize!(grid_ggd[1].grid_subset, 3)
-    grid_ggd[1].grid_subset[1].dimension = 1
-    grid_ggd[1].grid_subset[1].identifier.name = "nodes"
-    grid_ggd[1].grid_subset[1].identifier.index = 1
-    grid_ggd[1].grid_subset[1].identifier.description = "all points in the domain"
-    grid_ggd[1].grid_subset[2].dimension = 2
-    grid_ggd[1].grid_subset[2].identifier.name = "faces"
-    grid_ggd[1].grid_subset[2].identifier.index = 2
-    grid_ggd[1].grid_subset[2].identifier.description = "All edges in the domain"
-    grid_ggd[1].grid_subset[3].dimension = 3
-    grid_ggd[1].grid_subset[3].identifier.name = "cells"
-    grid_ggd[1].grid_subset[3].identifier.index = 5
-    grid_ggd[1].grid_subset[3].identifier.description = "all 2d cells in the domain"
+    subset_idx_node = 1
+    subset_idx_edge = 2
+    subset_idx_cell = 5
+    resize!(grid_ggd[grid_number].grid_subset, subset_idx_cell)  # Nodes, faces, x-aligned faces, y-aligned faces, cells
+    grid_ggd[grid_number].grid_subset[subset_idx_node].dimension = 1
+    grid_ggd[grid_number].grid_subset[subset_idx_node].identifier.name = "nodes"
+    grid_ggd[grid_number].grid_subset[subset_idx_node].identifier.index = subset_idx_node
+    grid_ggd[grid_number].grid_subset[subset_idx_node].identifier.description = "all points in the domain"
+    grid_ggd[grid_number].grid_subset[subset_idx_edge].dimension = 2
+    grid_ggd[grid_number].grid_subset[subset_idx_edge].identifier.name = "faces"
+    grid_ggd[grid_number].grid_subset[subset_idx_edge].identifier.index = subset_idx_edge
+    grid_ggd[grid_number].grid_subset[subset_idx_edge].identifier.description = "All edges in the domain"
+    grid_ggd[grid_number].grid_subset[subset_idx_cell].dimension = 3
+    grid_ggd[grid_number].grid_subset[subset_idx_cell].identifier.name = "cells"
+    grid_ggd[grid_number].grid_subset[subset_idx_cell].identifier.index = subset_idx_cell
+    grid_ggd[grid_number].grid_subset[subset_idx_cell].identifier.description = "all 2d cells in the domain"
 
     resize!(o0.object, ncell * 4)  # Points
     resize!(o1.object, ncell * 4)  # Edges
     resize!(o2.object, ncell)  # Faces
     resize!(o3.object, ncell)  # Volumes
 
-    resize!(dd.edge_profiles.ggd,1)
+    resize!(dd.edge_profiles.ggd,grid_number)
     ggd = dd.edge_profiles.ggd
-    resize!(ggd[1].electrons.temperature, 2)
-    # the 2 in temperature[2] is for defining Te for cells.
-    ggd[1].electrons.temperature[2].grid_index = 1
-    ggd[1].electrons.temperature[2].grid_subset_index = 2
-    ggd[1].electrons.temperature[2].values = [0.0]
-    resize!(ggd[1].electrons.temperature[2].values, nx*ny)
+    resize!(ggd[grid_number].electrons.temperature, subset_idx_cell)
+    ggd[grid_number].electrons.temperature[subset_idx_cell].grid_index = 1
+    ggd[grid_number].electrons.temperature[subset_idx_cell].grid_subset_index = subset_idx_cell
+    #resize!(ggd[grid_number].electrons.temperature[subset_idx_cell].values, nx*ny)
+    ggd[grid_number].electrons.temperature[subset_idx_cell].values = zeros(Float64, nx*ny)
+    resize!(o0.object, nx*ny*4)  # Should be fewer than this many points, but this way we won't under-fill
+    j = 1
+    for i = 1:(ny*nx*4)
+        o0.object[i].geometry = [0.0, 0.0]
+    end
+    for i = 1:(ny*nx)
+        o2.object[i].nodes = [0, 0, 0, 0]
+    end
+
     for iy = 1:ny
         for ix = 1:nx
             ic::Int = (iy - 1) * nx + ix
-            o0.object[ic].geometry = [1.0, 2.0]
-            o1.object[ic].nodes = [ic, ic+1]
-            ggd[1].electrons.temperature[2].values[ic] = 1.0#temperature[ic]  # one per cell
+            for icorner = 1:4
+                # Have to search to see if the node is already added and then record its index
+                # If not already listed, then list it under new index and record that
+                i_existing = search_points(dd, crx[icorner, iy, ix], cry[icorner, iy, ix])[1]
+                if i_existing == 0
+                    o0.object[j].geometry = [crx[icorner, iy, ix], cry[icorner, iy, ix]]
+                    o2.object[ic].nodes[icorner] = j
+                    j += 1
+                else
+                    o2.object[ic].nodes[icorner] = i_existing[1]
+                end
+            end
+            ggd[grid_number].electrons.temperature[subset_idx_cell].values[ic] = temperature[iy, ix]  # one per cell
         end # for ix
     end # for iy
 

@@ -47,13 +47,21 @@ function test_read_b2_output()
 end
 
 function test_populate_grid_ggd()
-    populate_grid_ggd(94, 32)
+    filename = "samples/b2fgmtry"
+    gmtry = read_b2_output(filename)
+    nxg, nyg = gmtry["nx,ny"]
+    nx = nxg + 2  # Account for guard cells
+    ny = nyg + 2  # Account for guard cells
+    filename = "samples/b2fstate"
+    state = read_b2_output(filename)
+    crx = reshape(gmtry["crx"], (4, ny, nx))
+    cry = reshape(gmtry["cry"], (4, ny, nx))
+    populate_grid_ggd(nx, ny, crx, cry, state["te"])
     return true
 end
 
 @testset "omasstuff" begin
     @test try_omas() === nothing
-    @test populate_grid_ggd(94, 38) === nothing
     @test test_read_b2_output()
     @test test_populate_grid_ggd()
 end
