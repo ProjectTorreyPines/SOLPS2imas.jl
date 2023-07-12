@@ -52,11 +52,11 @@ function test_populate_grid_ggd()
     nxg, nyg = gmtry["nx,ny"]
     nx = nxg + 2  # Account for guard cells
     ny = nyg + 2  # Account for guard cells
-    filename = "samples/b2fstate"
-    state = read_b2_output(filename)
+    filename = "samples/b2time.nc"
+    b2t = read_b2_output(filename)
     crx = reshape(gmtry["crx"], (4, ny, nx))
     cry = reshape(gmtry["cry"], (4, ny, nx))
-    populate_grid_ggd(nx, ny, crx, cry, state["te"])
+    populate_grid_ggd(nx, ny, crx, cry, "electrons", "density", b2t["ne2d"], b2t["timesa"])
     return true
 end
 

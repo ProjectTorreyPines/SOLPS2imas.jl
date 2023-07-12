@@ -220,12 +220,19 @@ function search_points(dd, r, z)
     return indices
 end
 
-function populate_grid_ggd(nx::Int64, ny::Int64, crx, cry, temperature)
+function populate_grid_ggd(nx::Int64, ny::Int64, crx, cry, group, quantity, values, times)
     ncell = nx * ny
     dd = OMAS.dd()
     println("another fun function!!!!!11!!!!!")
+    ndim = length(size(values))
+    if ndim == 3
+        nt = size(values)[1]
+    else
+        nt = 1
+    end
     grid_number = 1
-    resize!(dd.edge_profiles.grid_ggd, grid_number)
+    resize!(dd.edge_profiles.grid_ggd, 1)
+
     grid_ggd = dd.edge_profiles.grid_ggd
     space_number = 1
 
@@ -271,13 +278,6 @@ function populate_grid_ggd(nx::Int64, ny::Int64, crx, cry, temperature)
     resize!(o2.object, ncell)  # Faces
     resize!(o3.object, ncell)  # Volumes
 
-    resize!(dd.edge_profiles.ggd,grid_number)
-    ggd = dd.edge_profiles.ggd
-    resize!(ggd[grid_number].electrons.temperature, subset_idx_cell)
-    ggd[grid_number].electrons.temperature[subset_idx_cell].grid_index = 1
-    ggd[grid_number].electrons.temperature[subset_idx_cell].grid_subset_index = subset_idx_cell
-    #resize!(ggd[grid_number].electrons.temperature[subset_idx_cell].values, nx*ny)
-    ggd[grid_number].electrons.temperature[subset_idx_cell].values = zeros(Float64, nx*ny)
     resize!(o0.object, nx*ny*4)  # Should be fewer than this many points, but this way we won't under-fill
     j = 1
     for i = 1:(ny*nx*4)
@@ -285,6 +285,21 @@ function populate_grid_ggd(nx::Int64, ny::Int64, crx, cry, temperature)
     end
     for i = 1:(ny*nx)
         o2.object[i].nodes = [0, 0, 0, 0]
+    end
+
+    resize!(dd.edge_profiles.ggd,nt)
+    ggd = dd.edge_profiles.ggd
+    for it in 1:nt
+        if times !== nothing
+            ggd[it].time = Float64.(times[it])
+        end
+        grp = getproperty(ggd[it], Symbol(group))
+        qty = getproperty(grp, Symbol(quantity))
+        resize!(qty, subset_idx_cell)
+        qty[subset_idx_cell].grid_index = 1
+        qty[subset_idx_cell].grid_subset_index = subset_idx_cell
+        #resize!(qty[subset_idx_cell].values, nx*ny)
+        qty[subset_idx_cell].values = zeros(Float64, nx*ny)
     end
 
     for iy = 1:ny
@@ -302,9 +317,20 @@ function populate_grid_ggd(nx::Int64, ny::Int64, crx, cry, temperature)
                     o2.object[ic].nodes[icorner] = i_existing[1]
                 end
             end
-            ggd[grid_number].electrons.temperature[subset_idx_cell].values[ic] = temperature[iy, ix]  # one per cell
+            for it=1:nt
+                grp = getproperty(ggd[it], Symbol(group))
+                qty = getproperty(grp, Symbol(quantity))
+                if ndim == 3
+                    qty[subset_idx_cell].values[ic] = values[it, iy, ix]  # one per cell
+                else
+                    qty[subset_idx_cell].values[ic] = values[iy, ix]  # one per cell
+                end
+            end
         end # for ix
     end # for iy
+
+
+
 
     return nothing
 end
