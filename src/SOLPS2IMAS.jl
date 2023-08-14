@@ -2,8 +2,9 @@ module SOLPS2IMAS
 
 # using DelimitedFiles
 using Revise
-using IMASDD
-const OMAS = IMASDD
+# using IMASDD
+# const OMAS = IMASDD
+using OMAS
 using NCDatasets
 
 export try_omas
