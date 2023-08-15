@@ -14,7 +14,6 @@ export read_b2_output
 export search_points
 
 function try_omas()
-    println("it's the omas function")
     dd = OMAS.dd()
     resize!(dd.equilibrium.time_slice, 1)
     dd.equilibrium.time_slice[1].profiles_1d.psi = [0.0, 1.0, 2.0, 3.9]
@@ -122,6 +121,7 @@ function read_b2_output(filename)
     end
 
     contents = Dict()
+    array_sizes = Dict()
     lines = open(filename) do f
         readlines(f)
     end
@@ -134,29 +134,6 @@ function read_b2_output(filename)
     j = 1
     for l in lines
         if startswith(l, "*cf:")
-            # Cleanup previous array if applicable
-            if tag != ""
-                if arraysize == nx * ny
-                    # println(tag, " ", arraysize, " ", nx, " ", ny, " ", size(contents[tag]))
-                    # print(contents[tag])
-                    contents[tag] = reshape(contents[tag], (ny, nx))
-                elseif arraysize == nx * ny * ns
-                    # If ns == 2, then r,z vector arrays can't be distinguished
-                    # from species-dependent quantities by their shapes. But
-                    # they get treated the same way, so it's okay.
-                    contents[tag] = reshape(contents[tag], (ns, ny, nx))
-                elseif arraysize == nx * ny * 2
-                    contents[tag] = reshape(contents[tag], (2, ny, nx))
-                elseif arraysize == nx * ny * 2 * ns
-                    contents[tag] = reshape(contents[tag], (ns, 2, ny, nx))
-                elseif arraysize == nx * ny * 4
-                    # This case is only applicable to b2fgmtry, so ns will be 0 if this is
-                    # relevant.
-                    # Therefore, this case won't be inappropriately blocked by
-                    # ns * 2 when ns=2
-                    contents[tag] = reshape(contents[tag], (4, ny, nx))
-                end
-            end
             j = 1  # Reset intra-array element counter
             _, arraytype, arraysize, tag = split(l)
             arraysize = parse(Int, arraysize)
@@ -167,6 +144,7 @@ function read_b2_output(filename)
             else
                 contents[tag] = Array{Float64}(undef, arraysize)
             end
+            array_sizes[tag] = arraysize
         elseif tag != ""
             if arraytype == "int"
                 array_line = [parse(Int, ss) for ss in split(l)]
@@ -195,6 +173,29 @@ function read_b2_output(filename)
                 nx += 2  # Account for guard cells
                 ny += 2  # Account for guard cells
             end
+        end
+    end
+    # Cleanup arrays if applicable
+    for tag in keys(contents)
+        if array_sizes[tag] == nx * ny
+            # println(tag, " ", array_sizes[tag], " ", nx, " ", ny, " ", size(contents[tag]))
+            # print(contents[tag])
+            contents[tag] = reshape(contents[tag], (ny, nx))
+        elseif array_sizes[tag] == nx * ny * ns
+            # If ns == 2, then r,z vector arrays can't be distinguished
+            # from species-dependent quantities by their shapes. But
+            # they get treated the same way, so it's okay.
+            contents[tag] = reshape(contents[tag], (ns, ny, nx))
+        elseif array_sizes[tag] == nx * ny * 2
+            contents[tag] = reshape(contents[tag], (2, ny, nx))
+        elseif array_sizes[tag] == nx * ny * 2 * ns
+            contents[tag] = reshape(contents[tag], (ns, 2, ny, nx))
+        elseif array_sizes[tag] == nx * ny * 4
+            # This case is only applicable to b2fgmtry, so ns will be 0 if this is
+            # relevant.
+            # Therefore, this case won't be inappropriately blocked by
+            # ns * 2 when ns=2
+            contents[tag] = reshape(contents[tag], (4, ny, nx))
         end
     end
     return contents
@@ -242,12 +243,13 @@ function populate_grid_ggd(crx, cry, group, quantity, values, times)
     _, ny, nx = size(crx)
     ncell = nx * ny
     dd = OMAS.dd()
-    println("another fun function!!!!!11!!!!!")
     ndim = length(size(values))
-    if ndim == 3
-        nt = size(values)[1]
+    if times !== nothing
+        nt = length(times)
+        time_data_present = true
     else
         nt = 1
+        time_data_present = false
     end
     grid_number = 1
     resize!(dd.edge_profiles.grid_ggd, 1)
@@ -309,7 +311,7 @@ function populate_grid_ggd(crx, cry, group, quantity, values, times)
     resize!(dd.edge_profiles.ggd,nt)
     ggd = dd.edge_profiles.ggd
     for it in 1:nt
-        if times !== nothing
+        if time_data_present
             ggd[it].time = Float64.(times[it])
         end
         grp = getproperty(ggd[it], Symbol(group))
@@ -342,7 +344,7 @@ function populate_grid_ggd(crx, cry, group, quantity, values, times)
             for it=1:nt
                 grp = getproperty(ggd[it], Symbol(group))
                 qty = getproperty(grp, Symbol(quantity))
-                if ndim == 3
+                if time_data_present
                     qty[subset_idx_cell].values[ic] = values[it, iy, ix]  # one per cell
                 else
                     qty[subset_idx_cell].values[ic] = values[iy, ix]  # one per cell
