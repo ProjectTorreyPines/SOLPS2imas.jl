@@ -221,7 +221,25 @@ function search_points(dd, r, z)
     return indices
 end
 
-function populate_grid_ggd(nx::Int64, ny::Int64, crx, cry, group, quantity, values, times)
+
+"""
+    populate_grid_ggd(nx::Int64, ny::Int64, crx, cry, group, quantity, values, times)
+
+Create a OMAS.dd datastructure from given SOLPS data for one quantity of interest.
+Arguments:
+crx: Array(4, nx, ny) of r-coordinates of cell corners (cornerIndex x cellXIndex x cellYIndex)
+cry: Array(4, nx, ny) of z-coordinates of cell corners
+group: Field group (e_field, electrons, ion, neutral etc)
+quantity: Data quantity specifier (density, velocity, pressure etc)
+values: Array(len(times), nx, ny) of values of the quantity in a cell at a time
+times: Array of times if data contains third dimension for time evolution
+dd: (Optional) OMAS.dd datastructure to add data to. Creates empty new structure if not provided.
+
+Returns:
+dd: OMAS.dd Data structure
+"""
+function populate_grid_ggd(crx, cry, group, quantity, values, times)
+    _, ny, nx = size(crx)
     ncell = nx * ny
     dd = OMAS.dd()
     println("another fun function!!!!!11!!!!!")
@@ -306,6 +324,8 @@ function populate_grid_ggd(nx::Int64, ny::Int64, crx, cry, group, quantity, valu
     for iy = 1:ny
         for ix = 1:nx
             ic::Int = (iy - 1) * nx + ix
+            # Adding node positions data to grid_ggd[grid_number].space[space_number].objects_per_dimension[0].object[:].geometry
+            # Adding cell corners data to grid_ggd[grid_number].space[space_number].objects_per_dimension[2].object[:].nodes[1:4]
             for icorner = 1:4
                 # Have to search to see if the node is already added and then record its index
                 # If not already listed, then list it under new index and record that
@@ -318,6 +338,7 @@ function populate_grid_ggd(nx::Int64, ny::Int64, crx, cry, group, quantity, valu
                     o2.object[ic].nodes[icorner] = i_existing[1]
                 end
             end
+            # Adding the data quantity of each cell in ggd.group.quantity[5].values[:]
             for it=1:nt
                 grp = getproperty(ggd[it], Symbol(group))
                 qty = getproperty(grp, Symbol(quantity))
@@ -330,10 +351,7 @@ function populate_grid_ggd(nx::Int64, ny::Int64, crx, cry, group, quantity, valu
         end # for ix
     end # for iy
 
-
-
-
-    return nothing
+    return dd
 end
 
 end # module SOLPS2IMAS
