@@ -24,6 +24,9 @@ function test_read_b2_output()
     nx += 2  # Account for guard cells
     ny += 2  # Account for guard cells
     @assert(size(contents["te"]) == (ny, nx))
+    @assert(size(contents["na"]) == (ns, ny, nx))
+    @assert(size(contents["fna"]) == (ns, 2, ny, nx))
+    @assert(size(contents["fhe"]) == (ns, ny, nx))
 
     filename = "samples/b2fgmtry"
     contents = read_b2_output(filename)
@@ -31,7 +34,6 @@ function test_read_b2_output()
     nxg += 2  # Account for guard cells
     nyg += 2  # Account for guard cells
     sc = size(contents["crx"])
-    # println("nx=$(nxg), ny=$(nyg), size(contents['crx'])=$(sc)")
     @assert(size(contents["crx"]) == (4, nyg, nxg))
     @assert(nyg == ny)
     @assert(nxg == nx)
@@ -40,9 +42,21 @@ function test_read_b2_output()
     contents = read_b2_output(filename)
     nx = contents["nx"]
     ny = contents["ny"]
+    nybl = contents["nybl"]
+    nybr = contents["nybr"]
     nt = contents["time"]
+    ns = contents["ns"]
     @assert(size(contents["ne2d"]) == (nt, ny, nx))
-
+    @assert(size(contents["ft3dl"]) == (nt, nybl))
+    @assert(size(contents["fl3dl"]) == (nt, nybl))
+    @assert(size(contents["fc3dl"]) == (nt, nybl))
+    @assert(size(contents["ft3dr"]) == (nt, nybr))
+    @assert(size(contents["fl3dr"]) == (nt, nybr))
+    @assert(size(contents["fc3dr"]) == (nt, nybr))
+    @assert(size(contents["fna3da"]) == (nt, ns, nybr))
+    @assert(size(contents["tmhacore"]) == (nt, ))
+    @assert(size(contents["tmhasol"]) == (nt,))
+    @assert(size(contents["tmhadiv"]) == (nt,))
     return true
 end
 
