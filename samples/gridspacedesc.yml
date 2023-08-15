@@ -1,0 +1,14 @@
+1:                                                                  # grid_number
+  name: Sven                                                        # grid_dd[#].Identifier properties
+  index: 1
+  description: this is a grid
+  space:
+    1:                                                              # space_number
+      name: sp4ce                                                   # grid_dd[#].space[#].Identifier properties
+      index: 1
+      description:  "The final frontier"
+      geometry_type:                                                # grid_dd[#].space[#].geometry_type properties
+        name:  "standard"                                           
+        index:  0                                                   # 0 for standard, 1 for fourier. This is the important field
+        description:  "trying to hold a b2/solps mesh here"  
+      coordinates_type:  [4, 3]                                     # r, z

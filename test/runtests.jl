@@ -70,7 +70,7 @@ function test_populate_grid_ggd()
     b2t = read_b2_output(filename)
     crx = reshape(gmtry["crx"], (4, ny, nx))
     cry = reshape(gmtry["cry"], (4, ny, nx))
-    populate_grid_ggd(crx, cry, "electrons", "density", b2t["ne2d"], b2t["timesa"])
+    populate_grid_ggd("samples/gridspacedesc.yml", crx, cry, "electrons", "density", b2t["ne2d"], b2t["timesa"])
     return true
 end
 
