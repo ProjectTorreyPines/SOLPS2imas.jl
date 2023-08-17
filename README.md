@@ -4,11 +4,13 @@ Utility for loading data from existing SOLPS runs, including custom data in b2ti
 
 ## OMAS structure notes
 
+(using xx for indices that do not matter)
+
 1. edge_profiles.ggd store data of quantities; edge_profiles.grid_ggd store data about the grid geometry
 2. For both ggd and grid_ggd, different slices are different slices in time. That is, what we were calling grid_number is actually time iteration number/index (say it). ggd[it].time and grid_ggd[it].time will store the time array value.
 3. grid_ggd[it]
-   1. grid_ggd[it].index needs to be selected based on grid type (1 for linear, 2 for cylinder, 4 for single null etc.)
-   2. grid_ggd[it].grid_subset[xx] are various subsets like nodes, edges, cells etc. each with required index value at  grid_ggd[it].grid_subset[xx].index (using xx for indices that do not matter)
+   1. grid_ggd[it].space[xx].identifier.index needs to be selected based on grid type (1 for linear, 2 for cylinder, 4 for single null etc.)
+   2. grid_ggd[it].grid_subset[xx] are various subsets like nodes, edges, cells etc. each with required index value at  grid_ggd[it].grid_subset[xx].index
    3. grid_ggd[it].grid_subset[xx] properties are automatically generated for nodes, edges or cells but are required to be given for other kinds of subsets (like boundaries)
 4. ggd[it]
    1. ggd[it].electrons.<quantity>[xx].grid_subset_index needs to be mentioned to indicate whether the quantity is at a node, edge, or cell.

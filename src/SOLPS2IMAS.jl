@@ -13,6 +13,7 @@ export populate_grid_ggd
 export generate_test_data
 export read_b2_output
 export search_points
+export solps2imas
 
 function try_omas()
     dd = OMAS.dd()
@@ -95,23 +96,17 @@ function read_b2time_output(filename)
         "ny", "nybl", "nybr", "nya", "nyi",
         "nx", "nxbl", "nxbr", "nxa", "nxi",
     )
-    contents = Dict()
+    ret_dict = Dict("dim" => Dict(), "data" => Dict())
     ds = Dataset(filename)
     for key in keys(ds.dim)
-        contents[key] = ds.dim[key]
+        ret_dict["dim"][key] = ds.dim[key]
     end
     for key in keys(ds)
-        contents[key] = Array(ds[key])
         d = dimnames(ds[key])
         permute = [y for y in [findfirst(x->x==dimord, d) for dimord in dim_order] if y !== nothing]
-        #println(key)
-        #println(d, size(contents[key]))
-        #println(permute)
-        #print(key, " ", size(contents[key]), " ")
-        contents[key] = permutedims(contents[key], permute)
-        #println(size(contents[key]))
+        ret_dict["data"][key] = permutedims(Array(ds[key]), permute)
     end
-    return contents
+    return ret_dict
 end
 
 function read_b2_output(filename)
@@ -123,6 +118,7 @@ function read_b2_output(filename)
 
     contents = Dict()
     array_sizes = Dict()
+    ret_dict = Dict()
     lines = open(filename) do f
         readlines(f)
     end
@@ -168,38 +164,46 @@ function read_b2_output(filename)
                 nx, ny, ns = array_line
                 nx += 2  # Account for guard cells
                 ny += 2  # Account for guard cells
+                ret_dict["dim"] = Dict("nx" => nx, "ny" => ny, "ns" => ns)
+                delete!(contents, "nx,ny,ns")
             elseif tag == "nx,ny"  # This is present in b2fgmtry
                 nx, ny = array_line
                 ns = 0
                 nx += 2  # Account for guard cells
                 ny += 2  # Account for guard cells
+                ret_dict["dim"] = Dict("nx" => nx, "ny" => ny)
+                delete!(contents, "nx,ny,ns")
             end
         end
     end
-    # Cleanup arrays if applicable
+    # Cleanup arrays if applicable and return structured dictionary
+    ret_dict["dim"]["time"] = 1  # This part of code will be for final state or geometry file
+    ret_dict["data"] = Dict()    # Adding placeholder timestamp
+    ret_dict["data"]["timesa"] = [0.0]
     for tag in keys(contents)
+        # Note that size 1 dimention is added to the left always for time dimension
         if array_sizes[tag] == nx * ny
-            # println(tag, " ", array_sizes[tag], " ", nx, " ", ny, " ", size(contents[tag]))
-            # print(contents[tag])
-            contents[tag] = reshape(contents[tag], (ny, nx))
+            ret_dict["data"][tag] = reshape(contents[tag], (1, ny, nx))
         elseif array_sizes[tag] == nx * ny * ns
             # If ns == 2, then r,z vector arrays can't be distinguished
             # from species-dependent quantities by their shapes. But
             # they get treated the same way, so it's okay.
-            contents[tag] = reshape(contents[tag], (ns, ny, nx))
+            ret_dict["data"][tag] = reshape(contents[tag], (1, ns, ny, nx))
         elseif array_sizes[tag] == nx * ny * 2
-            contents[tag] = reshape(contents[tag], (2, ny, nx))
+            ret_dict["data"][tag] = reshape(contents[tag], (1, 2, ny, nx))
         elseif array_sizes[tag] == nx * ny * 2 * ns
-            contents[tag] = reshape(contents[tag], (ns, 2, ny, nx))
+            ret_dict["data"][tag] = reshape(contents[tag], (1, ns, 2, ny, nx))
         elseif array_sizes[tag] == nx * ny * 4
             # This case is only applicable to b2fgmtry, so ns will be 0 if this is
             # relevant.
             # Therefore, this case won't be inappropriately blocked by
             # ns * 2 when ns=2
-            contents[tag] = reshape(contents[tag], (4, ny, nx))
+            ret_dict["data"][tag] = reshape(contents[tag], (1, 4, ny, nx))
+        elseif tag ∉ keys(ret_dict["dim"])
+            ret_dict[tag] = contents[tag]
         end
     end
-    return contents
+    return ret_dict
 end
 
 function search_points(dd, r, z)
@@ -211,7 +215,7 @@ function search_points(dd, r, z)
     # If an index remains at 0, it means the point in question was not found
     nodes = dd.edge_profiles.grid_ggd[grid_number].space[space_number].objects_per_dimension[subset_idx_node].object
     for j = 1:n
-        for i = 1:length(nodes)
+        for i in eachindex(nodes)
             rn = nodes[i].geometry[1]
             zn = nodes[i].geometry[2]
             if (rn == r[j]) && (zn == z[j])
@@ -225,7 +229,8 @@ end
 
 
 """
-    populate_grid_ggd(nx::Int64, ny::Int64, crx, cry, group, quantity, values, times)
+(OBSOLETE, will scrap in next commit)
+    populate_grid_ggd(gsdesc, crx, cry, group, quantity, values, times)
 
 Create a OMAS.dd datastructure from given SOLPS data for one quantity of interest.
 Arguments:
@@ -270,11 +275,6 @@ function populate_grid_ggd(gsdesc, crx, cry, group, quantity, values, times)
             end
         end
 
-        # id = grid_ggdn.identifier
-        # id.name = gsdesc[grid_number]["name"]
-        # id.index = gsdesc[grid_number]["index"]
-        # id.description = gsdesc[grid_number]["description"]
-
         for space_number in keys(gsdesc[grid_number]["space"])
             # Add new space at the specified space_number
             if length(grid_ggdn.space) < space_number
@@ -296,14 +296,6 @@ function populate_grid_ggd(gsdesc, crx, cry, group, quantity, values, times)
             end
 
             space.coordinates_type = gsdesc[grid_number]["space"][space_number]["coordinates_type"]
-
-            # space.identifier.name = "sp4ce"
-            # space.identifier.index = 1
-            # space.identifier.description = "The final frontier"
-            # space.geometry_type.name = "standard"  # I doubt this is needed
-            # space.geometry_type.index = 0  # 0 for standard, 1 for fourier. This is the important field
-            # space.geometry_type.description = "trying to hold a b2/solps mesh here"  # I doubt this is needed
-            # space.coordinates_type = [4, 3]  # r, z
 
             # Assuming following to be standard for now. We can add this info through YAML as well
             resize!(space.objects_per_dimension, 4)
@@ -389,6 +381,194 @@ function populate_grid_ggd(gsdesc, crx, cry, group, quantity, values, times)
             end  # for iy
         end  # for space_number
     end  # for grid_number
+    return dd
+end
+
+"""
+    dict2prop(obj, dict)
+
+Copies grid_ggd and space description in dict format to the data structure recursively.
+"""
+function dict2prop(obj, dict)
+    for (key, prop) in dict
+        if isa(key, Int)
+            resize!(obj, key)
+            dict2prop(obj[key], prop)
+        elseif isa(key, String)
+            if isa(prop, Dict)
+                dict2prop(getfield(obj, Symbol(key)), prop)
+            else
+                setproperty!(obj, Symbol(key), prop)
+            end
+        end
+    end
+end
+
+"""
+    val_obj(var, ggd, gsi)
+
+Given SOLPS variable name (var), return the field to write values on from
+ggd object. 
+"""
+function val_obj(ggd, var)
+    path = []
+    id_sp = false
+    id_ax = false
+    nvar = deepcopy(var)
+
+    # Identify grid_subset_index to use
+    if occursin("2d", nvar)
+        gsi = 5
+    else
+        return nothing
+    end
+    if nvar[1] == 'n'
+        append!(path, ["density", gsi, "values"])
+        id_sp = true
+        nvar = nvar[2:end]
+    elseif nvar[1] == 't' && !(startswith(nvar, "tim") || startswith(nvar, "tm"))
+        append!(path, ["temperature", gsi, "values"])
+        id_sp = true
+        nvar = nvar[2:end]
+    elseif startswith(nvar, "fch")
+        append!(path, ["j_total", gsi])
+        id_ax = true
+        nvar = nvar[4:end]
+    end
+    if id_sp
+        if nvar[1] == 'e'
+            pushfirst!(path, "electrons")
+        elseif nvar[1] == 'i'
+            pushfirst!(path, 1)
+            pushfirst!(path, "ion")
+        end
+    end
+    if id_ax
+        if nvar[1] == 'x'
+            push!(path, "poloidal")
+        elseif nvar[1] == 'y'
+            push!(path, "radial")
+        end
+    end
+    # println(path)
+    if length(path) == 0
+        return nothing
+    else
+        obj = ggd
+        for ele in path
+            if typeof(ele) == String
+                obj = getfield(obj, Symbol(ele))
+            elseif typeof(ele) == Int
+                if length(obj) < ele
+                    resize!(obj, ele)
+                end
+                obj = obj[ele]
+            end
+        end
+        return obj
+    end
+end
+
+"""
+    solps2imas(b2gmtry, b2output, gsdesc)
+
+Main function of the module. Takes in a geometry file and a
+output file (either b2time or b2fstate) and a grid_ggd
+description in the form of a Dict or filename to equivalent
+YAML file. Returns data in OMAS.dd datastructure.
+"""
+function solps2imas(b2gmtry, b2output, gsdesc)
+    gmtry = read_b2_output(b2gmtry)
+    b2 =read_b2_output(b2output)
+    nt = b2["dim"]["time"]
+    times = b2["data"]["timesa"]
+    nx = gmtry["dim"]["nx"]
+    ny = gmtry["dim"]["ny"]
+    crx = gmtry["data"]["crx"]
+    cry = gmtry["data"]["cry"]
+    ncell = nx * ny
+
+    # Initialize an empty OMAS data structre
+    dd = OMAS.dd()
+
+    if typeof(gsdesc) == String
+        gsdesc = YAML.load_file(gsdesc)
+    end
+
+    # Add ggd and grid_ggd array equal to number of time steps
+    resize!(dd.edge_profiles.ggd, nt)
+    resize!(dd.edge_profiles.grid_ggd, nt)
+    for it in 1:nt
+        # Setup the grid first for this time step
+        grid_ggd = dd.edge_profiles.grid_ggd[it]
+        grid_ggd.time = Float64.(times[it])
+        dict2prop(grid_ggd, gsdesc)
+        for sn in keys(gsdesc["space"])
+            space = grid_ggd.space[sn]
+            # Assuming following to be standard for now. We can add this info through YAML as well
+            resize!(space.objects_per_dimension, 4)
+            o0 = space.objects_per_dimension[1]  # 0D objects
+            o1 = space.objects_per_dimension[2]  # 1D objects
+            o2 = space.objects_per_dimension[3]  # 2D objects
+            o3 = space.objects_per_dimension[4]  # 3D objects
+
+            # Resizing objects to hold cell geometry data
+            # Should be fewer than this many points, but this way we won't under-fill
+            resize!(o0.object, ncell * 4)  # Points
+            resize!(o1.object, ncell * 4)  # Edges
+            resize!(o2.object, ncell)  # Faces
+            resize!(o3.object, ncell)  # Volumes
+
+            # Initialize geometry for 0D objects
+            for i = 1:(ncell * 4)
+                o0.object[i].geometry = [0.0, 0.0]
+            end
+            # Initialize nodes for cells
+            for i = 1:(ncell)
+                o2.object[i].nodes = [0, 0, 0, 0]
+            end
+
+            j = 1
+            for iy = 1:ny
+                for ix = 1:nx
+                    ic::Int = (iy - 1) * nx + ix
+                    # Adding node positions data to grid_ggd[grid_number].space[space_number].objects_per_dimension[0].object[:].geometry
+                    # Adding cell corners data to grid_ggd[grid_number].space[space_number].objects_per_dimension[2].object[:].nodes[1:4]
+                    for icorner = 1:4
+                        # Have to search to see if the node is already added and then record its index
+                        # If not already listed, then list it under new index and record that
+                        # Note that time index has been fixed to 1 here. Only handling fixed grid geometry
+                        # through the run cases.
+                        i_existing = search_points(dd, crx[1, icorner, iy, ix], cry[1, icorner, iy, ix])[1]
+                        if i_existing == 0
+                            o0.object[j].geometry = [crx[1, icorner, iy, ix], cry[1, icorner, iy, ix]]
+                            o2.object[ic].nodes[icorner] = j
+                            j += 1
+                        else
+                            o2.object[ic].nodes[icorner] = i_existing[1]
+                        end
+                    end
+                end
+            end
+        end  # End of setting up space
+
+        # Filling data in ggd now
+        ggd = dd.edge_profiles.ggd[it]
+        ggd.time = Float64.(times[it])
+        for (key, data) in b2["data"]
+            obj = val_obj(ggd, key)
+            if !isnothing(obj)
+                resize!(obj, ncell)
+                for iy = 1:ny
+                    for ix = 1:nx
+                        ic::Int = (iy - 1) * nx + ix
+                        obj[ic] = data[it, iy, ix]
+                    end
+                end
+            end
+        end
+        # Done with filling data for this time step
+    end # End of it
     return dd
 end
 
