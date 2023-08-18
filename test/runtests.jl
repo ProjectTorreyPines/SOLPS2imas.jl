@@ -18,7 +18,7 @@ function test_generate_test_data()
 end
 
 function test_read_b2_output()
-    contents = read_b2_output("samples/b2fstate")
+    contents = read_b2_output("$(@__DIR__)/../samples/b2fstate")
     nt = contents["dim"]["time"]
     nx = contents["dim"]["nx"]
     ny = contents["dim"]["ny"]
@@ -28,7 +28,7 @@ function test_read_b2_output()
     @assert(size(contents["data"]["fna"]) == (nt, ns, 2, ny, nx))
     @assert(size(contents["data"]["fhe"]) == (nt, ns, ny, nx))
 
-    contents = read_b2_output("samples/b2fgmtry")
+    contents = read_b2_output("$(@__DIR__)/../samples/b2fgmtry")
     nt = contents["dim"]["time"]
     nxg = contents["dim"]["nx"]
     nyg = contents["dim"]["ny"]
@@ -37,7 +37,7 @@ function test_read_b2_output()
     @assert(nyg == ny)
     @assert(nxg == nx)
 
-    contents = read_b2_output("samples/b2time.nc")
+    contents = read_b2_output("$(@__DIR__)/../samples/b2time.nc")
     nx = contents["dim"]["nx"]
     ny = contents["dim"]["ny"]
     nybl = contents["dim"]["nybl"]
@@ -59,9 +59,9 @@ function test_read_b2_output()
 end
 
 function test_solps2imas()
-    b2gmtry = "samples/b2fgmtry"
-    b2output = "samples/b2time.nc"
-    gsdesc = "samples/gridspacedesc.yml"
+    b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
+    b2output = "$(@__DIR__)/../samples/b2time.nc"
+    gsdesc = "$(@__DIR__)/../samples/gridspacedesc.yml"
     b2t = read_b2_output(b2output)
     nx = b2t["dim"]["nx"]
     dd = solps2imas(b2gmtry, b2output, gsdesc)
@@ -74,13 +74,13 @@ function test_solps2imas()
 end
 
 function test_populate_grid_ggd()
-    gmtry = read_b2_output("samples/b2fgmtry")
+    gmtry = read_b2_output("$(@__DIR__)/../samples/b2fgmtry")
     nx = gmtry["dim"]["nx"]
     ny = gmtry["dim"]["ny"]
-    b2t = read_b2_output("samples/b2time.nc")
+    b2t = read_b2_output("$(@__DIR__)/../samples/b2time.nc")
     crx = reshape(gmtry["data"]["crx"], (4, ny, nx))
     cry = reshape(gmtry["data"]["cry"], (4, ny, nx))
-    populate_grid_ggd("samples/gridspacedesc.yml", crx, cry, "electrons", "density", b2t["data"]["ne2d"], b2t["data"]["timesa"])
+    populate_grid_ggd("$(@__DIR__)/../samples/gridspacedesc.yml", crx, cry, "electrons", "density", b2t["data"]["ne2d"], b2t["data"]["timesa"])
     return true
 end
 

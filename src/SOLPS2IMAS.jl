@@ -92,6 +92,8 @@ function read_b2time_output(filename)
     dim_order = (
         "time",
         "ns",
+        "nstrat",
+        "nc",
         "ndir",
         "ny", "nybl", "nybr", "nya", "nyi",
         "nx", "nxbl", "nxbr", "nxa", "nxi",
@@ -102,9 +104,17 @@ function read_b2time_output(filename)
         ret_dict["dim"][key] = ds.dim[key]
     end
     for key in keys(ds)
-        d = dimnames(ds[key])
-        permute = [y for y in [findfirst(x->x==dimord, d) for dimord in dim_order] if y !== nothing]
-        ret_dict["data"][key] = permutedims(Array(ds[key]), permute)
+        if key != "ntstep"
+            d = dimnames(ds[key])
+            permute = [y for y in [findfirst(x->x==dimord, d) for dimord in dim_order] if y !== nothing]
+            try
+                ret_dict["data"][key] = permutedims(Array(ds[key]), permute)
+            catch e
+                println("Error in reading ", key)
+                showerror(stdout, e)
+                println("Continuing by ignoring this field")
+            end
+        end
     end
     return ret_dict
 end
@@ -229,162 +239,6 @@ end
 
 
 """
-(OBSOLETE, will scrap in next commit)
-    populate_grid_ggd(gsdesc, crx, cry, group, quantity, values, times)
-
-Create a OMAS.dd datastructure from given SOLPS data for one quantity of interest.
-Arguments:
-gsdesc: Dict or String with filename to YAML file containing grid_ggd and space description
-crx: Array(4, nx, ny) of r-coordinates of cell corners (cornerIndex x cellXIndex x cellYIndex)
-cry: Array(4, nx, ny) of z-coordinates of cell corners
-group: Field group (e_field, electrons, ion, neutral etc)
-quantity: Data quantity specifier (density, velocity, pressure etc)
-values: Array(len(times), nx, ny) of values of the quantity in a cell at a time
-times: Array of times if data contains third dimension for time evolution
-dd: (For future, Optional) OMAS.dd datastructure to add data to. Creates empty new structure if not provided.
-
-Returns:
-dd: OMAS.dd Data structure
-"""
-function populate_grid_ggd(gsdesc, crx, cry, group, quantity, values, times)
-    _, ny, nx = size(crx)
-    ncell = nx * ny
-    dd = OMAS.dd()
-    ndim = length(size(values))
-    if times !== nothing
-        nt = length(times)
-        time_data_present = true
-    else
-        nt = 1
-        time_data_present = false
-    end
-
-    if typeof(gsdesc) == String
-        gsdesc = YAML.load_file(gsdesc)
-    end
-    for grid_number in keys(gsdesc)
-        # Add new grid_ggd at the specified grid_number
-        if length(dd.edge_profiles.grid_ggd) < grid_number
-            resize!(dd.edge_profiles.grid_ggd, grid_number)
-        end
-
-        grid_ggdn = dd.edge_profiles.grid_ggd[grid_number]
-        for pn in propertynames(grid_ggdn.identifier)
-            if pn in keys(gsdesc[grid_number])
-                setproperty!(grid_ggdn.identifier, pn, gsdesc[grid_number][pn])
-            end
-        end
-
-        for space_number in keys(gsdesc[grid_number]["space"])
-            # Add new space at the specified space_number
-            if length(grid_ggdn.space) < space_number
-                resize!(grid_ggdn.space, space_number)
-            end
-
-            space = grid_ggdn.space[space_number]
-
-            for pn in propertynames(space.identifier)
-                if pn in keys(gsdesc[grid_number]["space"][space_number])
-                    setproperty!(space.identifier, pn, gsdesc[grid_number]["space"][space_number][pn])
-                end
-            end
-
-            for pn in propertynames(space.geometry_type)
-                if pn in keys(gsdesc[grid_number]["space"][space_number]["geometry_type"])
-                    setproperty!(space.identifier, pn, gsdesc[grid_number]["space"][space_number]["geometry_type"][pn])
-                end
-            end
-
-            space.coordinates_type = gsdesc[grid_number]["space"][space_number]["coordinates_type"]
-
-            # Assuming following to be standard for now. We can add this info through YAML as well
-            resize!(space.objects_per_dimension, 4)
-            o0 = space.objects_per_dimension[1]  # 0D objects
-            o1 = space.objects_per_dimension[2]  # 1D objects
-            o2 = space.objects_per_dimension[3]  # 2D objects
-            o3 = space.objects_per_dimension[4]  # 3D objects
-            subset_idx_node = 1
-            subset_idx_edge = 2
-            subset_idx_cell = 5
-            resize!(grid_ggdn.grid_subset, subset_idx_cell)  # Nodes, faces, x-aligned faces, y-aligned faces, cells
-            grid_ggdn.grid_subset[subset_idx_node].dimension = 1
-            grid_ggdn.grid_subset[subset_idx_node].identifier.name = "nodes"
-            grid_ggdn.grid_subset[subset_idx_node].identifier.index = subset_idx_node
-            grid_ggdn.grid_subset[subset_idx_node].identifier.description = "all points in the domain"
-            grid_ggdn.grid_subset[subset_idx_edge].dimension = 2
-            grid_ggdn.grid_subset[subset_idx_edge].identifier.name = "faces"
-            grid_ggdn.grid_subset[subset_idx_edge].identifier.index = subset_idx_edge
-            grid_ggdn.grid_subset[subset_idx_edge].identifier.description = "All edges in the domain"
-            grid_ggdn.grid_subset[subset_idx_cell].dimension = 3
-            grid_ggdn.grid_subset[subset_idx_cell].identifier.name = "cells"
-            grid_ggdn.grid_subset[subset_idx_cell].identifier.index = subset_idx_cell
-            grid_ggdn.grid_subset[subset_idx_cell].identifier.description = "all 2d cells in the domain"
-
-            # Resizing objects to hold cell data
-            # Should be fewer than this many points, but this way we won't under-fill
-            resize!(o0.object, ncell * 4)  # Points
-            resize!(o1.object, ncell * 4)  # Edges
-            resize!(o2.object, ncell)  # Faces
-            resize!(o3.object, ncell)  # Volumes
-
-            for i = 1:(ny*nx*4)
-                o0.object[i].geometry = [0.0, 0.0]
-            end
-            for i = 1:(ny*nx)
-                o2.object[i].nodes = [0, 0, 0, 0]
-            end
-
-            resize!(dd.edge_profiles.ggd,nt)
-            ggd = dd.edge_profiles.ggd
-            for it in 1:nt
-                if time_data_present
-                    ggd[it].time = Float64.(times[it])
-                end
-                grp = getproperty(ggd[it], Symbol(group))
-                qty = getproperty(grp, Symbol(quantity))
-                resize!(qty, subset_idx_cell)
-                qty[subset_idx_cell].grid_index = 1
-                qty[subset_idx_cell].grid_subset_index = subset_idx_cell
-                #resize!(qty[subset_idx_cell].values, nx*ny)
-                qty[subset_idx_cell].values = zeros(Float64, nx*ny)
-            end
-
-            j = 1
-            for iy = 1:ny
-                for ix = 1:nx
-                    ic::Int = (iy - 1) * nx + ix
-                    # Adding node positions data to grid_ggd[grid_number].space[space_number].objects_per_dimension[0].object[:].geometry
-                    # Adding cell corners data to grid_ggd[grid_number].space[space_number].objects_per_dimension[2].object[:].nodes[1:4]
-                    for icorner = 1:4
-                        # Have to search to see if the node is already added and then record its index
-                        # If not already listed, then list it under new index and record that
-                        i_existing = search_points(dd, crx[icorner, iy, ix], cry[icorner, iy, ix])[1]
-                        if i_existing == 0
-                            o0.object[j].geometry = [crx[icorner, iy, ix], cry[icorner, iy, ix]]
-                            o2.object[ic].nodes[icorner] = j
-                            j += 1
-                        else
-                            o2.object[ic].nodes[icorner] = i_existing[1]
-                        end
-                    end
-                    # Adding the data quantity of each cell in ggd.group.quantity[5].values[:]
-                    for it=1:nt
-                        grp = getproperty(ggd[it], Symbol(group))
-                        qty = getproperty(grp, Symbol(quantity))
-                        if time_data_present
-                            qty[subset_idx_cell].values[ic] = values[it, iy, ix]  # one per cell
-                        else
-                            qty[subset_idx_cell].values[ic] = values[iy, ix]  # one per cell
-                        end
-                    end
-                end  # for ix
-            end  # for iy
-        end  # for space_number
-    end  # for grid_number
-    return dd
-end
-
-"""
     dict2prop(obj, dict)
 
 Copies grid_ggd and space description in dict format to the data structure recursively.
@@ -410,56 +264,21 @@ end
 Given SOLPS variable name (var), return the field to write values on from
 ggd object. 
 """
+solps_var_to_imas = YAML.load_file("$(@__DIR__)/solps_var_to_imas.yml")
 function val_obj(ggd, var)
-    path = []
-    id_sp = false
-    id_ax = false
-    nvar = deepcopy(var)
-
-    # Identify grid_subset_index to use
-    if occursin("2d", nvar)
-        gsi = 5
-    else
-        return nothing
-    end
-    if nvar[1] == 'n'
-        append!(path, ["density", gsi, "values"])
-        id_sp = true
-        nvar = nvar[2:end]
-    elseif nvar[1] == 't' && !(startswith(nvar, "tim") || startswith(nvar, "tm"))
-        append!(path, ["temperature", gsi, "values"])
-        id_sp = true
-        nvar = nvar[2:end]
-    elseif startswith(nvar, "fch")
-        append!(path, ["j_total", gsi])
-        id_ax = true
-        nvar = nvar[4:end]
-    end
-    if id_sp
-        if nvar[1] == 'e'
-            pushfirst!(path, "electrons")
-        elseif nvar[1] == 'i'
-            pushfirst!(path, 1)
-            pushfirst!(path, "ion")
-        end
-    end
-    if id_ax
-        if nvar[1] == 'x'
-            push!(path, "poloidal")
-        elseif nvar[1] == 'y'
-            push!(path, "radial")
-        end
-    end
-    # println(path)
-    if length(path) == 0
+    if var ∉ keys(solps_var_to_imas)
         return nothing
     else
+        path = solps_var_to_imas[var]
         obj = ggd
         for ele in path
             if typeof(ele) == String
                 obj = getfield(obj, Symbol(ele))
             elseif typeof(ele) == Int
-                if length(obj) < ele
+                if ele == -1
+                    resize!(obj, length(obj) + 1)
+                    ele = length(obj)
+                elseif length(obj) < ele
                     resize!(obj, ele)
                 end
                 obj = obj[ele]
