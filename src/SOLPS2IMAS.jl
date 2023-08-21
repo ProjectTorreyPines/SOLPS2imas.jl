@@ -258,33 +258,58 @@ function dict2prop(obj, dict)
     end
 end
 
+
 """
-    val_obj(var, ggd, gsi)
+    path_to_obj(obj, path)
+
+Using path which is a collection of strings and integers,
+return a field of structure obj, using strings as names
+of fields and integers as index of an array of structure.
+Example:
+path_to_obj(obj, ["abc", 3, "cde", "fgh", 5, "ijk"])
+returns
+obj.abc[3].cde.fgh[5].ijk
+Note: If integer is -1, the array of field is resized to
+increase by 1 in length and last element is returned.
+"""
+function path_to_obj(obj, path)
+    for ele in path
+        if typeof(ele) == String
+            obj = getfield(obj, Symbol(ele))
+        elseif typeof(ele) == Int
+            if ele == -1
+                resize!(obj, length(obj) + 1)
+                ele = length(obj)
+            elseif length(obj) < ele
+                resize!(obj, ele)
+            end
+            obj = obj[ele]
+        end
+    end
+    return obj
+end
+
+isint(x) = typeof(x) == Int
+
+"""
+    val_obj(var, ggd, grid_ggd_index)
 
 Given SOLPS variable name (var), return the field to write values on from
 ggd object. 
 """
 solps_var_to_imas = YAML.load_file("$(@__DIR__)/solps_var_to_imas.yml")
-function val_obj(ggd, var)
+function val_obj(ggd, var, grid_ggd_index)
     if var ∉ keys(solps_var_to_imas)
         return nothing
     else
         path = solps_var_to_imas[var]
-        obj = ggd
-        for ele in path
-            if typeof(ele) == String
-                obj = getfield(obj, Symbol(ele))
-            elseif typeof(ele) == Int
-                if ele == -1
-                    resize!(obj, length(obj) + 1)
-                    ele = length(obj)
-                elseif length(obj) < ele
-                    resize!(obj, ele)
-                end
-                obj = obj[ele]
-            end
-        end
-        return obj
+        gsi_ind = findlast(isint, path)
+        path_to_prop = path[1:gsi_ind]
+        prop_to_obj = path[gsi_ind + 1:end]
+        prop = path_to_obj(ggd, path_to_prop)
+        prop.grid_index = grid_ggd_index
+        prop.grid_subset_index = path[gsi_ind]
+        return path_to_obj(prop, prop_to_obj)
     end
 end
 
@@ -375,7 +400,7 @@ function solps2imas(b2gmtry, b2output, gsdesc)
         ggd = dd.edge_profiles.ggd[it]
         ggd.time = Float64.(times[it])
         for (key, data) in b2["data"]
-            obj = val_obj(ggd, key)
+            obj = val_obj(ggd, key, gsdesc["identifier"]["index"])
             if !isnothing(obj)
                 resize!(obj, ncell)
                 for iy = 1:ny
