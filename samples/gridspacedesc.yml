@@ -1,10 +1,10 @@
-identifier:                                                       # grid_dd[#].Identifier properties
+identifier:                                                       # grid_ggd[#].Identifier properties
   name: Sven                                                        
   index: 1
   description: This is a grid
 space:
   1:                                                              # space_number
-    identifier:                                                   # grid_dd[it].space[#].identifier properties
+    identifier:                                                   # grid_ggd[it].space[#].identifier properties
       name: linear
       index: 1
       description: Linear
