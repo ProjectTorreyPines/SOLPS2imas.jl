@@ -1,0 +1,35 @@
+identifier:                                                       # grid_ggd[#].Identifier properties
+  name: Sven                                                        
+  index: 1
+  description: This is a grid
+space:
+  1:                                                              # space_number
+    identifier:                                                   # grid_ggd[it].space[#].identifier properties
+      name: linear
+      index: 1
+      description: Linear
+    geometry_type:                                                # grid_dd[#].space[#].geometry_type properties
+      name:  "standard"                                           
+      index:  0                                                   # 0: standard, 1:Fourier, >1: Fourier with periodicity
+      description:  "trying to hold a b2/solps mesh here"         # Verbose descripition of space
+    coordinates_type:  [4, 3]                                     # r, z
+grid_subset:
+  1:
+    dimension: 0
+    identifier:
+      name: nodes
+      index: 1
+      description: All nodes (0D) belonging to the associated spaces, implicit declaration (no need to replicate the grid elements in the grid_subset structure). 
+  2:
+    dimension: 1
+    identifier:
+      name: edges
+      index: 2
+      description: All edges (1D) belonging to the associated spaces, implicit declaration (no need to replicate the grid elements in the grid_subset structure)
+  3:
+    dimension: 2
+    identifier:
+      name: cells
+      index: 5
+      description: All cells (2D) belonging to the associated spaces, implicit declaration (no need to replicate the grid elements in the grid_subset structure) 
+  

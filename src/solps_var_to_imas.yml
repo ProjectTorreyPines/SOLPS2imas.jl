@@ -1,0 +1,48 @@
+# List of conversion from solps variable name to ggd object structure
+# Format:
+# <solps_var_name>: [path_to_value_object]
+# path_to_value_object is a list of strings and integers
+# Each string will be assumed to be a property of preceding object
+# Each integer will be assumed to be an index of the preceding object vector
+#   If the length of the object vector is not sufficient, resize! will be used to increase the length
+#   **special** If integer is -1, then length is increased by 1 and last index is used
+# Example:
+# na: [ion, 1, density, 5, values] translates to ggd[it].ion[1].density[5].values
+# ta: [ion, -1, density, 5, values] translates to ggd[it].ion[end].density[5].values after increasing size of ion vector by 1.
+
+# In order from SOLPS-ITER_user_manual_2020-03-12.pdf (page 219, A.3 b2cdcv.F)
+
+# --------
+# Page 219
+na: [ion, -1, density, 5, values]
+ua: [ion, -1, velocity, 5, parallel]
+te: [electrons, temperature, 5, values]
+ti: [ion, 1, temperature, 5, values]      # atom(ion) temperature is averaged over all species, so only store in 1st index
+po: [phi_potential, 5, values]
+
+# --------
+# Page 221
+# nb, ub ignored since this data is already stored in na
+# ni ignored since this is simply sum over all na
+
+# --------
+# Page 222
+ne: [electrons, density, 5, values]
+# ne2 Different weighing, need to look closer later
+# pr, pz ignored for now, seem like derived quantities
+pe: [electrons, pressure, 5, values]
+# ro, rz mass density of atoms or just ions, IMAS.dd instead stores element atomic mass in ion. TO DO
+# ne2m ignored, derived quantity
+
+# --------
+# Page 224
+# uadiax: [ion, -1, velocity, 5, poloidal]
+# uadiay: [ion, -1, velocity, 5, radial]
+
+# In order from SOLPS-ITER_user_manual_2020-03-12.pdf (page 387, E. Quantities stored in b2time.nc)
+
+# --------
+# Page 391
+ne2d: [electrons, density, 5, values]
+te2d: [electrons, temperature, 5, values]
+ti2d: [ion, 1, temperature, 5, values]      # atom(ion) temperature is averaged over all species, so only store in 1st index
