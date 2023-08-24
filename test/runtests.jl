@@ -1,15 +1,6 @@
-using SOLPS2IMAS
+import SOLPS2IMAS: read_b2_output, solps2imas, try_omas
 using Test
-using Plots
 
-#To run this test
-#$ export LD_LIBRARY_PATH=""
-#$ julia
-#] add Revise
-#] activate .
-#] test
-# OR
-# julia> include("test/runtests.jl")
 
 function test_generate_test_data()
     cr, cz = generate_test_data()
@@ -73,16 +64,6 @@ function test_solps2imas()
     return true
 end
 
-function test_populate_grid_ggd()
-    gmtry = read_b2_output("$(@__DIR__)/../samples/b2fgmtry")
-    nx = gmtry["dim"]["nx"]
-    ny = gmtry["dim"]["ny"]
-    b2t = read_b2_output("$(@__DIR__)/../samples/b2time.nc")
-    crx = reshape(gmtry["data"]["crx"], (4, ny, nx))
-    cry = reshape(gmtry["data"]["cry"], (4, ny, nx))
-    populate_grid_ggd("$(@__DIR__)/../samples/gridspacedesc.yml", crx, cry, "electrons", "density", b2t["data"]["ne2d"], b2t["data"]["timesa"])
-    return true
-end
 
 @testset "omasstuff" begin
     @test try_omas() === nothing

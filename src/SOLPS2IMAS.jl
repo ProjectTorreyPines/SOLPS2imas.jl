@@ -1,24 +1,20 @@
 module SOLPS2IMAS
 
-# using DelimitedFiles
 using Revise
-# using IMASDD
-# const OMAS = IMASDD
-using OMAS
-using NCDatasets
-using YAML
+using OMAS: dd as OMAS_dd
+using NCDatasets: Dataset, dimnames
+using YAML: load_file as YAML_load_file
 
 export try_omas
-export populate_grid_ggd
 export generate_test_data
 export read_b2_output
 export search_points
 export solps2imas
 
 function try_omas()
-    dd = OMAS.dd()
-    resize!(dd.equilibrium.time_slice, 1)
-    dd.equilibrium.time_slice[1].profiles_1d.psi = [0.0, 1.0, 2.0, 3.9]
+    ids = OMAS_dd()
+    resize!(ids.equilibrium.time_slice, 1)
+    ids.equilibrium.time_slice[1].profiles_1d.psi = [0.0, 1.0, 2.0, 3.9]
     return nothing
 end
 
@@ -170,60 +166,132 @@ function read_b2_output(filename)
             end
             j += array_inc
 
-            if tag == "nx,ny,ns"  # This is present in b2fstate
-                nx, ny, ns = array_line
-                nx += 2  # Account for guard cells
-                ny += 2  # Account for guard cells
-                ret_dict["dim"] = Dict("nx" => nx, "ny" => ny, "ns" => ns)
-                delete!(contents, "nx,ny,ns")
-            elseif tag == "nx,ny"  # This is present in b2fgmtry
-                nx, ny = array_line
-                ns = 0
-                nx += 2  # Account for guard cells
-                ny += 2  # Account for guard cells
-                ret_dict["dim"] = Dict("nx" => nx, "ny" => ny)
-                delete!(contents, "nx,ny,ns")
-            end
+            # if tag == "nx,ny,ns"  # This is present in b2fstate
+            #     nx, ny, ns = array_line
+            #     nx += 2  # Account for guard cells
+            #     ny += 2  # Account for guard cells
+            #     ret_dict["dim"] = Dict("nx" => nx, "ny" => ny, "ns" => ns)
+            #     delete!(contents, "nx,ny,ns")
+            # elseif tag == "nx,ny"  # This is present in b2fgmtry
+            #     nx, ny = array_line
+            #     ns = 0
+            #     nx += 2  # Account for guard cells
+            #     ny += 2  # Account for guard cells
+            #     ret_dict["dim"] = Dict("nx" => nx, "ny" => ny)
+            #     delete!(contents, "nx,ny,ns")
+            # end
         end
     end
-    # Cleanup arrays if applicable and return structured dictionary
-    ret_dict["dim"]["time"] = 1  # This part of code will be for final state or geometry file
-    ret_dict["data"] = Dict()    # Adding placeholder timestamp
+    if "nx,ny" ∈ keys(contents)
+        return extract_geometry(contents)
+    elseif "nx,ny,ns" ∈ keys(contents)
+        return extract_state_quantities(contents)
+    else
+        throw(DomainError(keys(contents),
+              "nx,ny (b2fgmtry) or nx,ny,ns (b2fstate) must be present in b2 output file."))
+    end
+
+    # # Cleanup arrays if applicable and return structured dictionary
+    # ret_dict["dim"]["time"] = 1  # This part of code will be for final state or geometry file
+    # ret_dict["data"] = Dict()    # Adding placeholder timestamp
+    # ret_dict["data"]["timesa"] = [0.0]
+    # for tag in keys(contents)
+    #     # Note that size 1 dimention is added to the left always for time dimension
+    #     if array_sizes[tag] == nx * ny
+    #         ret_dict["data"][tag] = reshape(contents[tag], (1, ny, nx))
+    #     elseif array_sizes[tag] == nx * ny * ns
+    #         # If ns == 2, then r,z vector arrays can't be distinguished
+    #         # from species-dependent quantities by their shapes. But
+    #         # they get treated the same way, so it's okay.
+    #         ret_dict["data"][tag] = reshape(contents[tag], (1, ns, ny, nx))
+    #     elseif array_sizes[tag] == nx * ny * 2
+    #         ret_dict["data"][tag] = reshape(contents[tag], (1, 2, ny, nx))
+    #     elseif array_sizes[tag] == nx * ny * 2 * ns
+    #         ret_dict["data"][tag] = reshape(contents[tag], (1, ns, 2, ny, nx))
+    #     elseif array_sizes[tag] == nx * ny * 4
+    #         # This case is only applicable to b2fgmtry, so ns will be 0 if this is
+    #         # relevant.
+    #         # Therefore, this case won't be inappropriately blocked by
+    #         # ns * 2 when ns=2
+    #         ret_dict["data"][tag] = reshape(contents[tag], (1, 4, ny, nx))
+    #     elseif tag ∉ keys(ret_dict["dim"])
+    #         ret_dict[tag] = contents[tag]
+    #     end
+    # end
+    # return ret_dict
+end
+
+
+function extract_geometry(gmtry)
+    ret_dict = Dict("dim" => Dict(), "data" => Dict())
+    ret_dict["dim"]["nx_no_guard"], ret_dict["dim"]["ny_no_guard"] = gmtry["nx,ny"]
+    # includes guard cells
+    nx = ret_dict["dim"]["nx"] = ret_dict["dim"]["nx_no_guard"] + 2
+    ny = ret_dict["dim"]["ny"] = ret_dict["dim"]["ny_no_guard"] + 2
+    if "nncut" ∈ keys(gmtry)
+        ret_dict["dim"]["nncut"] = gmtry["nncut"]
+    end
+    # Adding placeholder timestamp
+    ret_dict["dim"]["time"] = 1
     ret_dict["data"]["timesa"] = [0.0]
-    for tag in keys(contents)
-        # Note that size 1 dimention is added to the left always for time dimension
-        if array_sizes[tag] == nx * ny
-            ret_dict["data"][tag] = reshape(contents[tag], (1, ny, nx))
-        elseif array_sizes[tag] == nx * ny * ns
-            # If ns == 2, then r,z vector arrays can't be distinguished
-            # from species-dependent quantities by their shapes. But
-            # they get treated the same way, so it's okay.
-            ret_dict["data"][tag] = reshape(contents[tag], (1, ns, ny, nx))
-        elseif array_sizes[tag] == nx * ny * 2
-            ret_dict["data"][tag] = reshape(contents[tag], (1, 2, ny, nx))
-        elseif array_sizes[tag] == nx * ny * 2 * ns
-            ret_dict["data"][tag] = reshape(contents[tag], (1, ns, 2, ny, nx))
-        elseif array_sizes[tag] == nx * ny * 4
-            # This case is only applicable to b2fgmtry, so ns will be 0 if this is
-            # relevant.
-            # Therefore, this case won't be inappropriately blocked by
-            # ns * 2 when ns=2
-            ret_dict["data"][tag] = reshape(contents[tag], (1, 4, ny, nx))
-        elseif tag ∉ keys(ret_dict["dim"])
-            ret_dict[tag] = contents[tag]
+    for k in keys(gmtry)
+        # The 4 fields of bb are poloidal, radial, toroidal, and total magnetic field
+        # according to page 212 of D. Coster, "SOLPS-ITER [manual]" (2019)
+        # The 4 fields in crx and cry are the corners of each grid cell.
+        if k ∈ ["crx", "cry", "bb"]
+            ret_dict["data"][k] = reshape(gmtry[k], (1, 4, ny, nx))
+        elseif k ∈ ["leftcut", "bottomcut", "rightcut", "topcut"]
+            ret_dict["data"][k] = Array([gmtry[k]])
+        elseif k ∈ ["leftcut2", "bottomcut2", "rightcut2", "topcut2"]
+            ret_dict["data"][k] = Array([gmtry[k[1:end-1]], gmtry[k]])
+        elseif length(gmtry[k]) == nx * ny
+            ret_dict["data"][k] = reshape(gmtry[k], (1, ny, nx))
+        elseif k ∉ keys(ret_dict["dim"])
+            ret_dict["data"][k] = gmtry[k]
         end
     end
     return ret_dict
 end
 
-function search_points(dd, r, z)
+
+function extract_state_quantities(state)
+    ret_dict = Dict("dim" => Dict(), "data" => Dict())
+    ret_dict["dim"]["nx_no_guard"], ret_dict["dim"]["ny_no_guard"], ret_dict["dim"]["ns"] = state["nx,ny,ns"]
+    # includes guard cells
+    nx = ret_dict["dim"]["nx"] = ret_dict["dim"]["nx_no_guard"] + 2
+    ny = ret_dict["dim"]["ny"] = ret_dict["dim"]["ny_no_guard"] + 2
+    ns = ret_dict["dim"]["ns"]
+    ndir = ret_dict["dim"]["ndir"] = 2
+    # Adding placeholder timestamp
+    ret_dict["dim"]["time"] = 1
+    ret_dict["data"]["timesa"] = [0.0]
+    for k in keys(state)
+        l = length(state[k])
+        if l == nx * ny
+            ret_dict["data"][k] = reshape(state[k], (1, ny, nx))
+        elseif l == nx * ny * ns
+            ret_dict["data"][k] = reshape(state[k], (1, ns, ny, nx))
+        elseif l == nx * ny * ndir
+            ret_dict["data"][k] = reshape(state[k], (1, ndir, ny, nx))
+        elseif l == nx * ny * ndir * ns
+            ret_dict["data"][k] = reshape(state[k], (1, ns, ndir, ny, nx))
+        elseif l == ns
+            ret_dict["data"][k] = reshape(state[k], (1, ns))
+        elseif k ∉ keys(ret_dict["dim"])
+            ret_dict["data"][k] = state[k]
+        end
+    end
+    return ret_dict
+end
+
+function search_points(ids, r, z)
     n = length(r)
     indices = zeros(Int, n)
     grid_number = 1
     space_number = 1
     subset_idx_node = 1
     # If an index remains at 0, it means the point in question was not found
-    nodes = dd.edge_profiles.grid_ggd[grid_number].space[space_number].objects_per_dimension[subset_idx_node].object
+    nodes = ids.edge_profiles.grid_ggd[grid_number].space[space_number].objects_per_dimension[subset_idx_node].object
     for j = 1:n
         for i in eachindex(nodes)
             rn = nodes[i].geometry[1]
@@ -297,7 +365,7 @@ isint(x) = typeof(x) == Int
 Given SOLPS variable name (var), return the field to write values on from
 ggd object. 
 """
-solps_var_to_imas = YAML.load_file("$(@__DIR__)/solps_var_to_imas.yml")
+solps_var_to_imas = YAML_load_file("$(@__DIR__)/solps_var_to_imas.yml")
 function val_obj(ggd, var, grid_ggd_index)
     if var ∉ keys(solps_var_to_imas)
         return nothing
@@ -333,18 +401,18 @@ function solps2imas(b2gmtry, b2output, gsdesc)
     ncell = nx * ny
 
     # Initialize an empty OMAS data structre
-    dd = OMAS.dd()
+    ids = OMAS_dd()
 
     if typeof(gsdesc) == String
-        gsdesc = YAML.load_file(gsdesc)
+        gsdesc = YAML_load_file(gsdesc)
     end
 
     # Add ggd and grid_ggd array equal to number of time steps
-    resize!(dd.edge_profiles.ggd, nt)
-    resize!(dd.edge_profiles.grid_ggd, nt)
+    resize!(ids.edge_profiles.ggd, nt)
+    resize!(ids.edge_profiles.grid_ggd, nt)
     for it in 1:nt
         # Setup the grid first for this time step
-        grid_ggd = dd.edge_profiles.grid_ggd[it]
+        grid_ggd = ids.edge_profiles.grid_ggd[it]
         grid_ggd.time = Float64.(times[it])
         dict2prop(grid_ggd, gsdesc)
         for sn in keys(gsdesc["space"])
@@ -383,7 +451,7 @@ function solps2imas(b2gmtry, b2output, gsdesc)
                         # If not already listed, then list it under new index and record that
                         # Note that time index has been fixed to 1 here. Only handling fixed grid geometry
                         # through the run cases.
-                        i_existing = search_points(dd, crx[1, icorner, iy, ix], cry[1, icorner, iy, ix])[1]
+                        i_existing = search_points(ids, crx[1, icorner, iy, ix], cry[1, icorner, iy, ix])[1]
                         if i_existing == 0
                             o0.object[j].geometry = [crx[1, icorner, iy, ix], cry[1, icorner, iy, ix]]
                             o2.object[ic].nodes[icorner] = j
@@ -397,7 +465,7 @@ function solps2imas(b2gmtry, b2output, gsdesc)
         end  # End of setting up space
 
         # Filling data in ggd now
-        ggd = dd.edge_profiles.ggd[it]
+        ggd = ids.edge_profiles.ggd[it]
         ggd.time = Float64.(times[it])
         for (key, data) in b2["data"]
             obj = val_obj(ggd, key, gsdesc["identifier"]["index"])
@@ -413,7 +481,7 @@ function solps2imas(b2gmtry, b2output, gsdesc)
         end
         # Done with filling data for this time step
     end # End of it
-    return dd
+    return ids
 end
 
 end # module SOLPS2IMAS
