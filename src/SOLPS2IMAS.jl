@@ -376,7 +376,7 @@ function val_obj(ggd, var, grid_ggd_index)
         prop_to_obj = path[gsi_ind + 1:end]
         prop = path_to_obj(ggd, path_to_prop)
         prop.grid_index = grid_ggd_index
-        prop.grid_subset_index = path[gsi_ind]
+        prop.grid_subset_index = gsi_ind
         return path_to_obj(prop, prop_to_obj)
     end
 end
@@ -390,30 +390,28 @@ description in the form of a Dict or filename to equivalent
 YAML file. Returns data in OMAS.dd datastructure.
 """
 function solps2imas(b2gmtry, b2output, gsdesc)
+    # Initialize an empty OMAS data structre
+    ids = OMAS_dd()
+
+    # Setup the grid first
     gmtry = read_b2_output(b2gmtry)
-    b2 =read_b2_output(b2output)
-    nt = b2["dim"]["time"]
-    times = b2["data"]["timesa"]
+
     nx = gmtry["dim"]["nx"]
     ny = gmtry["dim"]["ny"]
     crx = gmtry["data"]["crx"]
     cry = gmtry["data"]["cry"]
     ncell = nx * ny
 
-    # Initialize an empty OMAS data structre
-    ids = OMAS_dd()
-
     if typeof(gsdesc) == String
         gsdesc = YAML_load_file(gsdesc)
     end
 
-    # Add ggd and grid_ggd array equal to number of time steps
-    resize!(ids.edge_profiles.ggd, nt)
-    resize!(ids.edge_profiles.grid_ggd, nt)
-    for it in 1:nt
-        # Setup the grid first for this time step
+    # Add grid_ggd array equal to number of time steps
+    resize!(ids.edge_profiles.grid_ggd, gmtry["dim"]["time"])
+    for it in 1:gmtry["dim"]["time"]
+        
         grid_ggd = ids.edge_profiles.grid_ggd[it]
-        grid_ggd.time = Float64.(times[it])
+        grid_ggd.time = Float64.(gmtry["data"]["timesa"][it])
         dict2prop(grid_ggd, gsdesc)
         for sn in keys(gsdesc["space"])
             space = grid_ggd.space[sn]
@@ -463,10 +461,15 @@ function solps2imas(b2gmtry, b2output, gsdesc)
                 end
             end
         end  # End of setting up space
+    end
 
-        # Filling data in ggd now
+    # Filling data in ggd now
+    b2 = read_b2_output(b2output)
+    # Add grid_ggd array equal to number of time steps
+    resize!(ids.edge_profiles.ggd, b2["dim"]["time"])
+    for it in 1:b2["dim"]["time"]
         ggd = ids.edge_profiles.ggd[it]
-        ggd.time = Float64.(times[it])
+        ggd.time = Float64.(b2["data"]["timesa"][it])
         for (key, data) in b2["data"]
             obj = val_obj(ggd, key, gsdesc["identifier"]["index"])
             if !isnothing(obj)
@@ -481,6 +484,46 @@ function solps2imas(b2gmtry, b2output, gsdesc)
         end
         # Done with filling data for this time step
     end # End of it
+
+    # Adding magnetic field data
+    if "bb" ∈ keys(gmtry["data"])
+        bb = gmtry["data"]["bb"]
+        if length(ids.equilibrium.time_slice) < gmtry["dim"]["time"]
+            resize!(ids.equilibrium.time_slice, gmtry["dim"]["time"])
+            ids.equilibrium.time = gmtry["data"]["timesa"]
+        end
+        for it in 1:gmtry["dim"]["time"]
+            # Note
+            # Ideally, equilibrium keeps separate grids_ggd object for each time step
+            # But since we have already created them in edge_profiles.grid_ggd, we
+            # will not duplicate the information further.
+            # If some other code requires it, it can done by
+            # ids.equilibrium.grids_ggd = ids.edge_profiles.grid_ggd
+            time_slice = ids.equilibrium.time_slice[it]
+            resize!(time_slice.ggd, 1)
+            resize!(time_slice.ggd[1].b_field_tor, 1)
+            resize!(time_slice.ggd[1].b_field_r, 1)
+            resize!(time_slice.ggd[1].b_field_z, 1)
+
+            b_t = time_slice.ggd[1].b_field_tor[1]
+            b_r = time_slice.ggd[1].b_field_r[1]
+            b_z = time_slice.ggd[1].b_field_z[1]
+
+            b_z.grid_index = b_r.grid_index = b_t.grid_index = gsdesc["identifier"]["index"]
+            b_z.grid_subset_index = b_r.grid_subset_index = b_t.grid_subset_index = 5
+            resize!(b_z.values, ncell)
+            resize!(b_r.values, ncell)
+            resize!(b_t.values, ncell)
+            for iy = 1:ny
+                for ix = 1:nx
+                    ic::Int = (iy - 1) * nx + ix
+                    b_z.values[ic] = bb[it, 1, iy, ix]
+                    b_r.values[ic] = bb[it, 2, iy, ix]
+                    b_t.values[ic] = bb[it, 3, iy, ix]
+                end
+            end
+        end
+    end
     return ids
 end
 
