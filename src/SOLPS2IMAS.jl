@@ -413,6 +413,26 @@ function solps2imas(b2gmtry, b2output, gsdesc)
         end
         # Done with filling data for this time step
     end # End of it
+    # Store magnetic field data in equilibrium
+    equilibrium_slice = 1  # This will be the case unless someone is doing something funny
+    #if length(dd.equilibrium.time_slice) < equilibrium_slice:
+    resize!(dd.equilibrium.time_slice, equilibrium_slice)
+    #end
+    #if length(dd.equilibrium.time_slice[equilibrium_slice].ggd) < 1
+    resize!(dd.equilibrium.time_slice[equilibrium_slice].ggd, 1)
+    #end
+    eq_ggd = dd.equilibrium.time_slice[equilibrium_slice].ggd[1]
+    resize!(eq_ggd.b_field_tor, 5)
+    resize!(eq_ggd.b_field_tor[5].values, ncell)
+    eq_bb = eq_ggd.b_field_tor[5].values
+    data = gmtry["data"]["bb"][1, 3, :, :]  # bb stores Bpoloidal, Bradial, Btoroidal, Btotal;
+    # Bpol and Brad are w.r.t. the mesh so Brad is always 0. It's not B_R.
+    for iy = 1:ny
+        for ix = 1:nx
+            ic::Int = (iy - 1) * nx + ix
+            eq_bb[ic] = data[iy, ix]
+        end
+    end
     return dd
 end
 
