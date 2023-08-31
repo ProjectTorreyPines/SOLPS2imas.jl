@@ -382,6 +382,25 @@ function val_obj(ggd, var, grid_ggd_index)
 end
 
 """
+    find_subset_index()
+
+Finds the julia index of the subset with ggd_index matching the request.
+Example: GGD defines subset index 5 as being all 2D cells. But what is the Julia
+index of that subset within the IMAS DD representation? Yes, we're trying to find
+the index of the index, but they're different meanings of index.
+We'll call them dd_index (the place in the DD) and ggd_index (the type of subset).
+"""
+function find_subset_index(gsdesc, ggd_index)
+    subsets = length(gsdesc["grid_subset"])
+    for dd_index = 1:subsets
+        if gsdesc["grid_subset"][dd_index]["identifier"]["index"] == ggd_index
+            return dd_index
+        end
+    end
+    return 0  # Indicates failure
+end
+
+"""
     solps2imas(b2gmtry, b2output, gsdesc)
 
 Main function of the module. Takes in a geometry file and a
@@ -421,6 +440,8 @@ function solps2imas(b2gmtry, b2output, gsdesc)
             o1 = space.objects_per_dimension[2]  # 1D objects
             o2 = space.objects_per_dimension[3]  # 2D objects
             o3 = space.objects_per_dimension[4]  # 3D objects
+
+            subset_nodes = grid_ggd.grid_subset[find_subset_index(gsdesc, 1)]
 
             # Resizing objects to hold cell geometry data
             # Should be fewer than this many points, but this way we won't under-fill
