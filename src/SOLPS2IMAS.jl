@@ -201,9 +201,9 @@ function extract_geometry(gmtry)
         if k ∈ ["crx", "cry", "bb"]
             ret_dict["data"][k] = reshape(gmtry[k], (1, 4, ny, nx))
         elseif k ∈ ["leftcut", "bottomcut", "rightcut", "topcut"]
-            ret_dict["data"][k] = Array([gmtry[k]])
+            ret_dict["data"][k] = Array([gmtry[k][1]])
         elseif k ∈ ["leftcut2", "bottomcut2", "rightcut2", "topcut2"]
-            ret_dict["data"][k] = Array([gmtry[k[1:end-1]], gmtry[k]])
+            ret_dict["data"][k] = Array([gmtry[k[1:end-1]][1], gmtry[k][1]])
         elseif length(gmtry[k]) == nx * ny
             ret_dict["data"][k] = reshape(gmtry[k], (1, ny, nx))
         elseif k ∉ keys(ret_dict["dim"])
@@ -243,6 +243,31 @@ function extract_state_quantities(state)
     end
     return ret_dict
 end
+
+
+"""
+   select_core(q, topcut, bottomcut, leftcut, rightcut)
+
+Selects core part for any quantity q
+Inspired from
+https://odin.gat.com/eldond/sparc_detach_ctrl/blob/master/synth_diag/scripts/profile_extensions.py#L20
+"""
+function select_core(q; topcut, bottomcut, leftcut, rightcut)
+    slices = [range(1, s) for s in size(q)[1:end-2]]
+    append!(slices, [range(bottomcut + 2, topcut + 1), range((leftcut + 1), (rightcut + 1))])
+    return view(q, slices...)
+end
+
+
+"""
+   in_core(ix, iy; topcut, bottomcut, leftcut, rightcut)
+
+Returns true if cell inxed ix, iy lie inside the core
+"""
+function in_core(ix, iy; topcut, bottomcut, leftcut, rightcut)
+    return bottomcut + 1 < iy < topcut + 2 && leftcut < ix < rightcut + 2
+end
+
 
 function search_points(ids, r, z)
     n = length(r)
@@ -317,7 +342,9 @@ function path_to_obj(obj, path)
     return obj
 end
 
+
 isint(x) = typeof(x) == Int
+
 
 """
     val_obj(var, ggd, grid_ggd_index)
@@ -341,6 +368,7 @@ function val_obj(ggd, var, grid_ggd_index)
     end
 end
 
+
 """
     find_subset_index()
 
@@ -360,6 +388,7 @@ function find_subset_index(gsdesc, ggd_index)
     return 0  # Indicates failure
 end
 
+
 """
     solps2imas(b2gmtry, b2output, gsdesc)
 
@@ -377,9 +406,17 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
 
     nx = gmtry["dim"]["nx"]
     ny = gmtry["dim"]["ny"]
+    ncell = nx * ny
     crx = gmtry["data"]["crx"]
     cry = gmtry["data"]["cry"]
-    ncell = nx * ny
+    cut_keys = ["leftcut", "rightcut", "bottomcut", "topcut"]
+    core_found = cut_keys ⊆ keys(gmtry["data"])
+    if core_found
+        cuts = Dict([(Symbol(key), gmtry["data"][key][1]) for key in cut_keys])
+        ncell_core = ((cuts[:topcut] - cuts[:bottomcut])
+                      * (cuts[:rightcut] - cuts[:leftcut] + 1))
+    end
+
 
     if typeof(gsdesc) == String
         gsdesc = YAML_load_file(gsdesc)
@@ -409,12 +446,11 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                 grid_ggd.grid_subset[isub].identifier.description = gsdesc["grid_subset"][isub]["identifier"]["description"]
                 grid_ggd.grid_subset[isub].dimension = gsdesc["grid_subset"][isub]["dimension"]
             end
-            s1 = find_subset_index(gsdesc, 1)
-            s2 = find_subset_index(gsdesc, 2)
-            s3 = find_subset_index(gsdesc, 3)
-            subset_nodes = grid_ggd.grid_subset[s1]
-            subset_faces = grid_ggd.grid_subset[s2]
-            subset_cells = grid_ggd.grid_subset[s3]
+
+            subset_nodes = grid_ggd.grid_subset[find_subset_index(gsdesc, 1)]  # nodes have index 1
+            subset_faces = grid_ggd.grid_subset[find_subset_index(gsdesc, 2)]  # faces (edges with elongation in third dimension) have index 2
+            subset_cells = grid_ggd.grid_subset[find_subset_index(gsdesc, 5)]  # cells (cell in 2D grid, volume with elongation) have index 5
+            subset_core = grid_ggd.grid_subset[find_subset_index(gsdesc, 22)]  # core cells have index 22
 
             # Resizing objects to hold cell geometry data
             # Should be fewer than this many points, but this way we won't under-fill
@@ -425,6 +461,9 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
             resize!(o2.object, ncell)  # Cells (2D)
             resize!(subset_cells.element, ncell)
             resize!(o3.object, ncell)  # Volumes
+            if core_found
+                resize!(subset_core.element, ncell_core)
+            end
 
             # Initialize geometry for 0D objects
             for i = 1:(ncell * 4)
@@ -436,6 +475,7 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
             end
 
             j = 1
+            core_dd_ind = 0
             for iy = 1:ny
                 for ix = 1:nx
                     ic::Int = (iy - 1) * nx + ix
@@ -458,10 +498,17 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                         else
                             o2.object[ic].nodes[icorner] = i_existing[1]
                         end
-                        resize!(subset_cells.element[ic].object, 1)
-                        subset_cells.element[ic].object[1].space = sn
-                        subset_cells.element[ic].object[1].dimension = 2
-                        subset_cells.element[ic].object[1].index = ic
+                    end
+                    resize!(subset_cells.element[ic].object, 1)
+                    subset_cells.element[ic].object[1].space = sn
+                    subset_cells.element[ic].object[1].dimension = 2
+                    subset_cells.element[ic].object[1].index = ic
+                    if core_found && in_core(ix, iy; cuts...)
+                        core_dd_ind += 1
+                        resize!(subset_core.element[core_dd_ind].object, 1)
+                        subset_core.element[core_dd_ind].object[1].space = sn
+                        subset_core.element[core_dd_ind].object[1].dimension = 2
+                        subset_core.element[core_dd_ind].object[1].index = ic
                     end
                 end
             end
