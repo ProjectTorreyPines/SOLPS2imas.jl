@@ -441,13 +441,29 @@ function solps2imas(b2gmtry, b2output, gsdesc)
             o2 = space.objects_per_dimension[3]  # 2D objects
             o3 = space.objects_per_dimension[4]  # 3D objects
 
-            subset_nodes = grid_ggd.grid_subset[find_subset_index(gsdesc, 1)]
+            subsets = length(gsdesc["grid_subset"])
+            resize!(grid_ggd.grid_subset, subsets)
+            for isub = 1:subsets
+                grid_ggd.grid_subset[isub].identifier.name = gsdesc["grid_subset"][isub]["identifier"]["name"]
+                grid_ggd.grid_subset[isub].identifier.index = gsdesc["grid_subset"][isub]["identifier"]["index"]
+                grid_ggd.grid_subset[isub].identifier.description = gsdesc["grid_subset"][isub]["identifier"]["description"]
+                grid_ggd.grid_subset[isub].dimension = gsdesc["grid_subset"][isub]["dimension"]
+            end
+            s1 = find_subset_index(gsdesc, 1)
+            s2 = find_subset_index(gsdesc, 2)
+            s3 = find_subset_index(gsdesc, 3)
+            subset_nodes = grid_ggd.grid_subset[s1]
+            subset_faces = grid_ggd.grid_subset[s2]
+            subset_cells = grid_ggd.grid_subset[s3]
 
             # Resizing objects to hold cell geometry data
             # Should be fewer than this many points, but this way we won't under-fill
             resize!(o0.object, ncell * 4)  # Points
+            resize!(subset_nodes.element, ncell * 4)
             resize!(o1.object, ncell * 4)  # Faces / edges
+            resize!(subset_faces.element, ncell * 4)
             resize!(o2.object, ncell)  # Cells (2D)
+            resize!(subset_cells.element, ncell)
             resize!(o3.object, ncell)  # Volumes
 
             # Initialize geometry for 0D objects
@@ -474,10 +490,18 @@ function solps2imas(b2gmtry, b2output, gsdesc)
                         if i_existing == 0
                             o0.object[j].geometry = [crx[1, icorner, iy, ix], cry[1, icorner, iy, ix]]
                             o2.object[ic].nodes[icorner] = j
+                            resize!(subset_nodes.element[j].object, 1)
+                            subset_nodes.element[j].object[1].space = sn
+                            subset_nodes.element[j].object[1].dimension = 0
+                            subset_nodes.element[j].object[1].index = j
                             j += 1
                         else
                             o2.object[ic].nodes[icorner] = i_existing[1]
                         end
+                        resize!(subset_cells.element[ic].object, 1)
+                        subset_cells.element[ic].object[1].space = sn
+                        subset_cells.element[ic].object[1].dimension = 2
+                        subset_cells.element[ic].object[1].index = ic
                     end
                 end
             end
