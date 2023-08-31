@@ -425,8 +425,8 @@ function solps2imas(b2gmtry, b2output, gsdesc)
             # Resizing objects to hold cell geometry data
             # Should be fewer than this many points, but this way we won't under-fill
             resize!(o0.object, ncell * 4)  # Points
-            resize!(o1.object, ncell * 4)  # Edges
-            resize!(o2.object, ncell)  # Faces
+            resize!(o1.object, ncell * 4)  # Faces / edges
+            resize!(o2.object, ncell)  # Cells (2D)
             resize!(o3.object, ncell)  # Volumes
 
             # Initialize geometry for 0D objects
