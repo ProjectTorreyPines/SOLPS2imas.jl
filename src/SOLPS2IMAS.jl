@@ -11,12 +11,14 @@ export read_b2_output
 export search_points
 export solps2imas
 
+
 function try_omas()
     ids = OMAS_dd()
     resize!(ids.equilibrium.time_slice, 1)
     ids.equilibrium.time_slice[1].profiles_1d.psi = [0.0, 1.0, 2.0, 3.9]
     return nothing
 end
+
 
 function generate_test_data(nx=94, ny=38, sep=15, lcut=25, rcut=69)
     """This doesn't work well"""
@@ -84,6 +86,7 @@ function generate_test_data(nx=94, ny=38, sep=15, lcut=25, rcut=69)
     return (cell_centers_r, cell_centers_z)
 end
 
+
 function read_b2time_output(filename)
     dim_order = (
         "time",
@@ -114,6 +117,7 @@ function read_b2time_output(filename)
     end
     return ret_dict
 end
+
 
 function read_b2_output(filename)
     # x = readdlm(filename, ' ', Float64, '\n', header=true)  # Doesn't handle the text lines at the start of each array
@@ -165,21 +169,6 @@ function read_b2_output(filename)
                 contents[tag][j:j+array_inc-1] = array_line
             end
             j += array_inc
-
-            # if tag == "nx,ny,ns"  # This is present in b2fstate
-            #     nx, ny, ns = array_line
-            #     nx += 2  # Account for guard cells
-            #     ny += 2  # Account for guard cells
-            #     ret_dict["dim"] = Dict("nx" => nx, "ny" => ny, "ns" => ns)
-            #     delete!(contents, "nx,ny,ns")
-            # elseif tag == "nx,ny"  # This is present in b2fgmtry
-            #     nx, ny = array_line
-            #     ns = 0
-            #     nx += 2  # Account for guard cells
-            #     ny += 2  # Account for guard cells
-            #     ret_dict["dim"] = Dict("nx" => nx, "ny" => ny)
-            #     delete!(contents, "nx,ny,ns")
-            # end
         end
     end
     if "nx,ny" ∈ keys(contents)
@@ -190,35 +179,6 @@ function read_b2_output(filename)
         throw(DomainError(keys(contents),
               "nx,ny (b2fgmtry) or nx,ny,ns (b2fstate) must be present in b2 output file."))
     end
-
-    # # Cleanup arrays if applicable and return structured dictionary
-    # ret_dict["dim"]["time"] = 1  # This part of code will be for final state or geometry file
-    # ret_dict["data"] = Dict()    # Adding placeholder timestamp
-    # ret_dict["data"]["timesa"] = [0.0]
-    # for tag in keys(contents)
-    #     # Note that size 1 dimention is added to the left always for time dimension
-    #     if array_sizes[tag] == nx * ny
-    #         ret_dict["data"][tag] = reshape(contents[tag], (1, ny, nx))
-    #     elseif array_sizes[tag] == nx * ny * ns
-    #         # If ns == 2, then r,z vector arrays can't be distinguished
-    #         # from species-dependent quantities by their shapes. But
-    #         # they get treated the same way, so it's okay.
-    #         ret_dict["data"][tag] = reshape(contents[tag], (1, ns, ny, nx))
-    #     elseif array_sizes[tag] == nx * ny * 2
-    #         ret_dict["data"][tag] = reshape(contents[tag], (1, 2, ny, nx))
-    #     elseif array_sizes[tag] == nx * ny * 2 * ns
-    #         ret_dict["data"][tag] = reshape(contents[tag], (1, ns, 2, ny, nx))
-    #     elseif array_sizes[tag] == nx * ny * 4
-    #         # This case is only applicable to b2fgmtry, so ns will be 0 if this is
-    #         # relevant.
-    #         # Therefore, this case won't be inappropriately blocked by
-    #         # ns * 2 when ns=2
-    #         ret_dict["data"][tag] = reshape(contents[tag], (1, 4, ny, nx))
-    #     elseif tag ∉ keys(ret_dict["dim"])
-    #         ret_dict[tag] = contents[tag]
-    #     end
-    # end
-    # return ret_dict
 end
 
 
@@ -408,7 +368,7 @@ output file (either b2time or b2fstate) and a grid_ggd
 description in the form of a Dict or filename to equivalent
 YAML file. Returns data in OMAS.dd datastructure.
 """
-function solps2imas(b2gmtry, b2output, gsdesc)
+function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
     # Initialize an empty OMAS data structre
     ids = OMAS_dd()
 
@@ -531,7 +491,7 @@ function solps2imas(b2gmtry, b2output, gsdesc)
     end # End of it
 
     # Adding magnetic field data
-    if "bb" ∈ keys(gmtry["data"])
+    if "bb" ∈ keys(gmtry["data"]) && load_bb
         bb = gmtry["data"]["bb"]
         if length(ids.equilibrium.time_slice) < gmtry["dim"]["time"]
             resize!(ids.equilibrium.time_slice, gmtry["dim"]["time"])
