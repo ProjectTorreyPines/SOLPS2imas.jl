@@ -1,6 +1,6 @@
-import SOLPS2IMAS: read_b2_output, solps2imas, try_omas
+import SOLPS2IMAS
 using Test
-
+using YAML: load_file as YAML_load_file
 
 function test_generate_test_data()
     cr, cz = generate_test_data()
@@ -9,7 +9,7 @@ function test_generate_test_data()
 end
 
 function test_read_b2_output()
-    contents = read_b2_output("$(@__DIR__)/../samples/b2fstate")
+    contents = SOLPS2IMAS.read_b2_output("$(@__DIR__)/../samples/b2fstate")
     nt = contents["dim"]["time"]
     nx = contents["dim"]["nx"]
     ny = contents["dim"]["ny"]
@@ -19,7 +19,7 @@ function test_read_b2_output()
     @assert(size(contents["data"]["fna"]) == (nt, ns, 2, ny, nx))
     @assert(size(contents["data"]["fhe"]) == (nt, ns, ny, nx))
 
-    contents = read_b2_output("$(@__DIR__)/../samples/b2fgmtry")
+    contents = SOLPS2IMAS.read_b2_output("$(@__DIR__)/../samples/b2fgmtry")
     nt = contents["dim"]["time"]
     nxg = contents["dim"]["nx"]
     nyg = contents["dim"]["ny"]
@@ -28,7 +28,7 @@ function test_read_b2_output()
     @assert(nyg == ny)
     @assert(nxg == nx)
 
-    contents = read_b2_output("$(@__DIR__)/../samples/b2time.nc")
+    contents = SOLPS2IMAS.read_b2_output("$(@__DIR__)/../samples/b2time.nc")
     nx = contents["dim"]["nx"]
     ny = contents["dim"]["ny"]
     nybl = contents["dim"]["nybl"]
@@ -53,9 +53,9 @@ function test_solps2imas()
     b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
     b2output = "$(@__DIR__)/../samples/b2time.nc"
     gsdesc = "$(@__DIR__)/../samples/gridspacedesc.yml"
-    b2t = read_b2_output(b2output)
+    b2t = SOLPS2IMAS.read_b2_output(b2output)
     nx = b2t["dim"]["nx"]
-    dd = solps2imas(b2gmtry, b2output, gsdesc)
+    dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output, gsdesc)
     # Check time stamp 3 at iy=4, ix=5
     it = 3
     iy = 4
@@ -66,7 +66,15 @@ end
 
 
 @testset "omasstuff" begin
-    @test try_omas() === nothing
+    @test SOLPS2IMAS.try_omas() === nothing
     @test test_read_b2_output()
     @test test_solps2imas()
+end
+
+@testset "utilities" begin
+    gsdesc = YAML_load_file("$(@__DIR__)/../samples/gridspacedesc.yml")
+    println("hello there")
+    @test SOLPS2IMAS.find_subset_index(gsdesc, 1) == 1
+    @test SOLPS2IMAS.find_subset_index(gsdesc, 5) == 5
+    @test SOLPS2IMAS.find_subset_index(gsdesc, 101) == 27
 end

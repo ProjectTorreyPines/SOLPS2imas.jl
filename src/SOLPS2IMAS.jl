@@ -201,9 +201,9 @@ function extract_geometry(gmtry)
         if k ∈ ["crx", "cry", "bb"]
             ret_dict["data"][k] = reshape(gmtry[k], (1, 4, ny, nx))
         elseif k ∈ ["leftcut", "bottomcut", "rightcut", "topcut"]
-            ret_dict["data"][k] = Array([gmtry[k]])
+            ret_dict["data"][k] = Array([gmtry[k][1]])
         elseif k ∈ ["leftcut2", "bottomcut2", "rightcut2", "topcut2"]
-            ret_dict["data"][k] = Array([gmtry[k[1:end-1]], gmtry[k]])
+            ret_dict["data"][k] = Array([gmtry[k[1:end-1]][1], gmtry[k][1]])
         elseif length(gmtry[k]) == nx * ny
             ret_dict["data"][k] = reshape(gmtry[k], (1, ny, nx))
         elseif k ∉ keys(ret_dict["dim"])
@@ -243,6 +243,94 @@ function extract_state_quantities(state)
     end
     return ret_dict
 end
+
+
+"""
+   select_core(q, topcut, bottomcut, leftcut, rightcut)
+
+Selects core part for any quantity q
+Inspired from
+https://odin.gat.com/eldond/sparc_detach_ctrl/blob/master/synth_diag/scripts/profile_extensions.py#L20
+"""
+function select_core(q; topcut, bottomcut, leftcut, rightcut)
+    slices = [range(1, s) for s in size(q)[1:end-2]]
+    append!(slices, [range(bottomcut + 2, topcut + 1), range((leftcut + 1), (rightcut + 1))])
+    return view(q, slices...)
+end
+
+
+"""
+   get_cell_numbers(nx, ny; topcut, bottomcut, leftcut, rightcut)
+
+Returns number of cells in core, SOL, inner divertor region and outer divertor region
+"""
+function get_cell_numbers(nx, ny; topcut, bottomcut, leftcut, rightcut)
+    ncell_core = (topcut - bottomcut) * (rightcut - leftcut + 1)
+    ncell_sol = (ny - topcut - 1) * nx
+    ncell_idr = (topcut - bottomcut) * leftcut
+    ncell_odr = (topcut - bottomcut) * (nx - rightcut - 1)
+    return ncell_core, ncell_sol, ncell_idr, ncell_odr
+end
+
+
+"""
+   in_core(ix, iy; topcut, bottomcut, leftcut, rightcut)
+
+Returns true if cell indexed ix, iy lie inside the core
+"""
+function in_core(ix, iy; topcut, bottomcut, leftcut, rightcut)
+    return bottomcut + 1 < iy < topcut + 2 && leftcut < ix < rightcut + 2
+end
+
+
+"""
+   in_sol(ix, iy; topcut, bottomcut, leftcut, rightcut)
+
+Returns true if cell indexed ix, iy lie inside the SOL
+"""
+function in_sol(ix, iy; topcut, bottomcut, leftcut, rightcut)
+    return topcut + 1 < iy
+end
+
+
+"""
+   in_idr(ix, iy; topcut, bottomcut, leftcut, rightcut)
+
+Returns true if cell indexed ix, iy lie inside the inner divertor region
+"""
+function in_idr(ix, iy; topcut, bottomcut, leftcut, rightcut)
+    return bottomcut + 1 < iy < topcut + 2 && ix < leftcut + 1
+end
+
+
+"""
+   in_odr(ix, iy; topcut, bottomcut, leftcut, rightcut)
+
+Returns true if cell indexed ix, iy lie inside the outer divertor region
+"""
+function in_odr(ix, iy; topcut, bottomcut, leftcut, rightcut)
+    return bottomcut + 1 < iy < topcut + 2 && rightcut + 1 < ix
+end
+
+
+"""
+   add_subset_element!(subset, dd_ind, sn, dim, index, ix, iy, in_subset=(x...)->true; kwargs...)
+
+Adds the geometric element in subset object (assumed to be resized already) at element dd index dd_ind,
+with space number sn, dimension dim, index index, for a cell in SOLPS mesh indices ix, iy. To determine,
+if the element should be added or not, a function in_subset can be provided that gets the arguments
+(ix, iy; kwargs...). These functions will be in_core, in_sol etc as difined above.
+"""
+function add_subset_element!(subset, dd_ind, sn, dim, index, ix, iy, in_subset=(x...)->true; kwargs...)
+    if in_subset(ix, iy; kwargs...)
+        dd_ind += 1
+        resize!(subset.element[dd_ind].object, 1)
+        subset.element[dd_ind].object[1].space = sn
+        subset.element[dd_ind].object[1].dimension = dim
+        subset.element[dd_ind].object[1].index = index
+    end
+end
+
 
 function search_points(ids, r, z)
     n = length(r)
@@ -317,7 +405,9 @@ function path_to_obj(obj, path)
     return obj
 end
 
+
 isint(x) = typeof(x) == Int
+
 
 """
     val_obj(var, ggd, grid_ggd_index)
@@ -341,6 +431,27 @@ function val_obj(ggd, var, grid_ggd_index)
     end
 end
 
+
+"""
+    find_subset_index()
+
+Finds the julia index of the subset with ggd_index matching the request.
+Example: GGD defines subset index 5 as being all 2D cells. But what is the Julia
+index of that subset within the IMAS DD representation? Yes, we're trying to find
+the index of the index, but they're different meanings of index.
+We'll call them dd_index (the place in the DD) and ggd_index (the type of subset).
+"""
+function find_subset_index(gsdesc, ggd_index)
+    subsets = length(gsdesc["grid_subset"])
+    for dd_index = 1:subsets
+        if gsdesc["grid_subset"][dd_index]["identifier"]["index"] == ggd_index
+            return dd_index
+        end
+    end
+    return 0  # Indicates failure
+end
+
+
 """
     solps2imas(b2gmtry, b2output, gsdesc)
 
@@ -358,9 +469,16 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
 
     nx = gmtry["dim"]["nx"]
     ny = gmtry["dim"]["ny"]
+    ncell = nx * ny
     crx = gmtry["data"]["crx"]
     cry = gmtry["data"]["cry"]
-    ncell = nx * ny
+    cut_keys = ["leftcut", "rightcut", "bottomcut", "topcut"]
+    cuts_found = cut_keys ⊆ keys(gmtry["data"])
+    if cuts_found
+        cuts = Dict([(Symbol(key), gmtry["data"][key][1]) for key in cut_keys])
+        ncell_core, ncell_sol, ncell_idr, ncell_odr = get_cell_numbers(nx, ny; cuts...)
+    end
+
 
     if typeof(gsdesc) == String
         gsdesc = YAML_load_file(gsdesc)
@@ -382,12 +500,40 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
             o2 = space.objects_per_dimension[3]  # 2D objects
             o3 = space.objects_per_dimension[4]  # 3D objects
 
+            subsets = length(gsdesc["grid_subset"])
+            resize!(grid_ggd.grid_subset, subsets)
+            for isub = 1:subsets
+                grid_ggd.grid_subset[isub].identifier.name = gsdesc["grid_subset"][isub]["identifier"]["name"]
+                grid_ggd.grid_subset[isub].identifier.index = gsdesc["grid_subset"][isub]["identifier"]["index"]
+                grid_ggd.grid_subset[isub].identifier.description = gsdesc["grid_subset"][isub]["identifier"]["description"]
+                grid_ggd.grid_subset[isub].dimension = gsdesc["grid_subset"][isub]["dimension"]
+            end
+
+            subset_nodes = grid_ggd.grid_subset[find_subset_index(gsdesc, 1)]  # nodes have index 1
+            subset_faces = grid_ggd.grid_subset[find_subset_index(gsdesc, 2)]  # faces (edges with elongation in third dimension) have index 2
+            subset_cells = grid_ggd.grid_subset[find_subset_index(gsdesc, 5)]  # cells (cell in 2D grid, volume with elongation) have index 5
+            if cuts_found
+                subset_core = grid_ggd.grid_subset[find_subset_index(gsdesc, 22)]  # core cells have index 22
+                subset_sol = grid_ggd.grid_subset[find_subset_index(gsdesc, 23)]   # sol cells have index 23
+                subset_odr = grid_ggd.grid_subset[find_subset_index(gsdesc, 24)]   # odr cells have index 24
+                subset_idr = grid_ggd.grid_subset[find_subset_index(gsdesc, 25)]   # idr cells have index 25
+            end
+
             # Resizing objects to hold cell geometry data
             # Should be fewer than this many points, but this way we won't under-fill
             resize!(o0.object, ncell * 4)  # Points
-            resize!(o1.object, ncell * 4)  # Edges
-            resize!(o2.object, ncell)  # Faces
+            resize!(subset_nodes.element, ncell * 4)
+            resize!(o1.object, ncell * 4)  # Faces / edges
+            resize!(subset_faces.element, ncell * 4)
+            resize!(o2.object, ncell)  # Cells (2D)
+            resize!(subset_cells.element, ncell)
             resize!(o3.object, ncell)  # Volumes
+            if cuts_found
+                resize!(subset_core.element, ncell_core)
+                resize!(subset_sol.element, ncell_sol)
+                resize!(subset_idr.element, ncell_idr)
+                resize!(subset_odr.element, ncell_odr)
+            end
 
             # Initialize geometry for 0D objects
             for i = 1:(ncell * 4)
@@ -399,6 +545,11 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
             end
 
             j = 1
+            cell_dd_ind = 0
+            core_dd_ind = 0
+            sol_dd_ind = 0
+            idr_dd_ind = 0
+            odr_dd_ind = 0
             for iy = 1:ny
                 for ix = 1:nx
                     ic::Int = (iy - 1) * nx + ix
@@ -413,10 +564,22 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                         if i_existing == 0
                             o0.object[j].geometry = [crx[1, icorner, iy, ix], cry[1, icorner, iy, ix]]
                             o2.object[ic].nodes[icorner] = j
+                            resize!(subset_nodes.element[j].object, 1)
+                            subset_nodes.element[j].object[1].space = sn
+                            subset_nodes.element[j].object[1].dimension = 0
+                            subset_nodes.element[j].object[1].index = j
                             j += 1
                         else
                             o2.object[ic].nodes[icorner] = i_existing[1]
                         end
+                    end
+                    add_subset_element!(subset_cells, cell_dd_ind, sn, 2, ic, ix, iy)
+                    if cuts_found
+                        # add_subset_element!(subset, dd_ind, sn, dim, index, ix, iy, in_subset=(x...) -> true; kwargs...)
+                        add_subset_element!(subset_core, core_dd_ind, sn, 2, ic, ix, iy, in_core; cuts...)
+                        add_subset_element!(subset_sol, sol_dd_ind, sn, 2, ic, ix, iy, in_sol; cuts...)
+                        add_subset_element!(subset_idr, idr_dd_ind, sn, 2, ic, ix, iy, in_idr; cuts...)
+                        add_subset_element!(subset_odr, odr_dd_ind, sn, 2, ic, ix, iy, in_odr; cuts...)
                     end
                 end
             end
