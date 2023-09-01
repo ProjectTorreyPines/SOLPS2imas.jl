@@ -199,13 +199,13 @@ function extract_geometry(gmtry)
         # according to page 212 of D. Coster, "SOLPS-ITER [manual]" (2019)
         # The 4 fields in crx and cry are the corners of each grid cell.
         if k ∈ ["crx", "cry", "bb"]
-            ret_dict["data"][k] = reshape(gmtry[k], (1, 4, ny, nx))
+            ret_dict["data"][k] = permutedims(reshape(gmtry[k], (nx, ny, 4, 1)), (4, 3, 2, 1))
         elseif k ∈ ["leftcut", "bottomcut", "rightcut", "topcut"]
             ret_dict["data"][k] = Array([gmtry[k][1]])
         elseif k ∈ ["leftcut2", "bottomcut2", "rightcut2", "topcut2"]
             ret_dict["data"][k] = Array([gmtry[k[1:end-1]][1], gmtry[k][1]])
         elseif length(gmtry[k]) == nx * ny
-            ret_dict["data"][k] = reshape(gmtry[k], (1, ny, nx))
+            ret_dict["data"][k] = permutedims(reshape(gmtry[k], (nx, ny, 1)), (3, 2, 1))
         elseif k ∉ keys(ret_dict["dim"])
             ret_dict["data"][k] = gmtry[k]
         end
@@ -228,15 +228,15 @@ function extract_state_quantities(state)
     for k in keys(state)
         l = length(state[k])
         if l == nx * ny
-            ret_dict["data"][k] = reshape(state[k], (1, ny, nx))
+            ret_dict["data"][k] = permutedims(reshape(state[k], (nx, ny, 1)), (3, 2, 1))
         elseif l == nx * ny * ns
-            ret_dict["data"][k] = reshape(state[k], (1, ns, ny, nx))
+            ret_dict["data"][k] = permutedims(reshape(state[k], (nx, ny, ns, 1)), (4, 3, 2, 1))
         elseif l == nx * ny * ndir
-            ret_dict["data"][k] = reshape(state[k], (1, ndir, ny, nx))
+            ret_dict["data"][k] = permutedims(reshape(state[k], (nx, ny, ndir, 1)), (4, 3, 2, 1))
         elseif l == nx * ny * ndir * ns
-            ret_dict["data"][k] = reshape(state[k], (1, ns, ndir, ny, nx))
+            ret_dict["data"][k] = permutedims(reshape(state[k], (nx, ny, ndir, ns, 1)), (5, 4, 3, 2, 1))
         elseif l == ns
-            ret_dict["data"][k] = reshape(state[k], (1, ns))
+            ret_dict["data"][k] = permutedims(reshape(state[k], (ns, 1)), (2, 1))
         elseif k ∉ keys(ret_dict["dim"])
             ret_dict["data"][k] = state[k]
         end
