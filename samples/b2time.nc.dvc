@@ -1,0 +1,12 @@
+md5: ca5c76dfa367c27a421168b198c3346d
+frozen: true
+deps:
+- path: ITER_Lore_2296_00000/run_restart/b2time.nc
+  repo:
+    url: git@github.com:ProjectTorreyPines/TestSamples.git
+    rev_lock: dc2da57d329888998e008f766e620ee914541d2f
+outs:
+- md5: 850542d59a6796eca1e22a64162af2de
+  size: 201992
+  hash: md5
+  path: b2time.nc
