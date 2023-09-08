@@ -28,7 +28,7 @@ function test_read_b2_output()
     @assert(nyg == ny)
     @assert(nxg == nx)
 
-    contents = SOLPS2IMAS.read_b2_output("$(@__DIR__)/../samples/b2time.nc")
+    contents = SOLPS2IMAS.read_b2_output("$(@__DIR__)/../samples/b2time_red.nc")
     nx = contents["dim"]["nx"]
     ny = contents["dim"]["ny"]
     nybl = contents["dim"]["nybl"]
@@ -51,7 +51,7 @@ end
 
 function test_solps2imas()
     b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
-    b2output = "$(@__DIR__)/../samples/b2time.nc"
+    b2output = "$(@__DIR__)/../samples/b2time_red.nc"
     gsdesc = "$(@__DIR__)/../samples/gridspacedesc.yml"
     b2t = SOLPS2IMAS.read_b2_output(b2output)
     nx = b2t["dim"]["nx"]
