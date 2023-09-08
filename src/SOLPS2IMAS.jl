@@ -246,42 +246,60 @@ end
 
 
 """
-   in_core(ix, iy; topcut, bottomcut, leftcut, rightcut)
+   in_core(; ix, iy, topcut, bottomcut, leftcut, rightcut)
 
 Returns true if cell indexed ix, iy lie inside the core
 """
-function in_core(ix, iy; topcut, bottomcut, leftcut, rightcut)
+function in_core(; ix, iy, topcut, bottomcut, leftcut, rightcut)
     return bottomcut + 1 < iy < topcut + 2 && leftcut < ix < rightcut + 2
 end
 
 
 """
-   in_sol(ix, iy; topcut, bottomcut, leftcut, rightcut)
+   in_sol(; ix, iy, topcut, bottomcut, leftcut, rightcut)
 
 Returns true if cell indexed ix, iy lie inside the SOL
 """
-function in_sol(ix, iy; topcut, bottomcut, leftcut, rightcut)
+function in_sol(; ix, iy, topcut, bottomcut, leftcut, rightcut)
     return topcut + 1 < iy
 end
 
 
 """
-   in_idr(ix, iy; topcut, bottomcut, leftcut, rightcut)
+   in_idr(; ix, iy, topcut, bottomcut, leftcut, rightcut)
 
 Returns true if cell indexed ix, iy lie inside the inner divertor region
 """
-function in_idr(ix, iy; topcut, bottomcut, leftcut, rightcut)
+function in_idr(; ix, iy, topcut, bottomcut, leftcut, rightcut)
     return bottomcut + 1 < iy < topcut + 2 && ix < leftcut + 1
 end
 
 
 """
-   in_odr(ix, iy; topcut, bottomcut, leftcut, rightcut)
+   in_odr(; ix, iy, topcut, bottomcut, leftcut, rightcut)
 
 Returns true if cell indexed ix, iy lie inside the outer divertor region
 """
-function in_odr(ix, iy; topcut, bottomcut, leftcut, rightcut)
+function in_odr(; ix, iy, topcut, bottomcut, leftcut, rightcut)
     return bottomcut + 1 < iy < topcut + 2 && rightcut + 1 < ix
+end
+
+
+"""
+   is_core_cut(; ix, iy, nx, o2, edge_ind, topcut, bottomcut, leftcut, rightcut)
+
+Returns true if edge_ind correspond to an edge  of cell at ix, iy that is in core_cut
+"""
+function is_core_cut(; ix, iy, nx, o2, edge_ind, topcut, bottomcut, leftcut, rightcut)
+    if bottomcut + 1 < iy < topcut + 2 && ix == leftcut + 1
+        # Thus the cell lies on the edge of core on left side
+        # Get neighbour cell in x-direction (cell at same iy but on right side of core)
+        ixr = rightcut + 2
+        icr = (iy - 1) * nx + ixr
+        # check if edge is present in this neighbor cell
+        return edge_ind ∈ [o2.object[icr].boundary[b_ind].index for b_ind in 1:4]
+    end
+    return false
 end
 
 
@@ -289,12 +307,12 @@ end
    add_subset_element!(subset, sn, dim, index, ix, iy, in_subset=(x...)->true; kwargs...)
 
 Adds the geometric element in subset object (assumed to be resized already) at element dd index dd_ind,
-with space number sn, dimension dim, index index, for a cell in SOLPS mesh indices ix, iy. To determine,
+with space number sn, dimension dim, index. To determine,
 if the element should be added or not, a function in_subset can be provided that gets the arguments
-(ix, iy; kwargs...). These functions will be in_core, in_sol etc as difined above.
+(kwargs...). These functions will be in_core, in_sol etc as difined above.
 """
-function add_subset_element!(subset, sn, dim, index, ix=0, iy=0, in_subset=(x...)->true; kwargs...)
-    if in_subset(ix, iy; kwargs...)
+function add_subset_element!(subset, sn, dim, index, in_subset=(x...)->true; kwargs...)
+    if in_subset(; kwargs...)
         dd_ind = length(subset.element) + 1
         resize!(subset.element, dd_ind)
         resize!(subset.element[dd_ind].object, 1)
@@ -358,6 +376,32 @@ function search_points(ids, r, z)
         end
     end
     return indices
+end
+
+
+"""
+    search_edges(o1, edge_nodes)
+
+search if an edge with nodes as edge_nodes already exists in 1D objects_per_dimension o1
+"""
+function search_edges(o1, edge_nodes)
+    for ii in eachindex(o1.object)
+        if Set(edge_nodes) == Set(o1.object[ii].nodes)
+            return ii
+            break
+        end
+    end
+    return 0
+end
+
+
+"""
+    distance_between_nodes(o0, nodes)
+
+Return distance between two nodes in 0D objects_per_dimension o0
+"""
+function distance_between_nodes(o0, nodes)
+    return √(sum((o0.object[nodes[1]].geometry - o0.object[nodes[2]].geometry).^2))
 end
 
 
@@ -534,6 +578,7 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                 subset_odr = get_grid_subset_with_index(grid_ggd, 24)   # odr cells have index 24
                 subset_idr = get_grid_subset_with_index(grid_ggd, 25)   # idr cells have index 25
                 subset_xp = get_grid_subset_with_index(grid_ggd, 6)     # x_points have index 6
+                subset_cc = get_grid_subset_with_index(grid_ggd, 7)     # core_cut have index 7
             end
 
             # Resizing objects to hold cell geometry data
@@ -543,16 +588,20 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
             resize!(o2.object, ncell)  # Cells (2D)
             resize!(o3.object, ncell)  # Volumes
 
-            # Initialize geometry for 0D objects
+            # Initialize geometry for 0D objects, nodes for 1D objects
             for i = 1:(ncell * 4)
                 o0.object[i].geometry = [0.0, 0.0]
+                o1.object[i].nodes = [0, 0]
             end
-            # Initialize nodes for cells
+            # Initialize nodes and boundaries for cells
             for i = 1:(ncell)
                 o2.object[i].nodes = [0, 0, 0, 0]
+                resize!(o2.object[i].boundary, 4)
             end
 
             j = 1
+            edge_ind = 1
+            cell_array = Array{Any}(undef, nx, ny)  # Local memory of SOLPS index to IMAS cell object
             for iy = 1:ny
                 for ix = 1:nx
                     ic::Int = (iy - 1) * nx + ix
@@ -576,13 +625,41 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                             o2.object[ic].nodes[icorner] = i_existing[1]
                         end
                     end
-                    add_subset_element!(subset_cells, sn, 2, ic, ix, iy)
+                    # Adding edges (faced with toroidal elongation) to grid_ggd[grid_number].space[space_number].objects_per_dimension[1].object[:].nodes[1:2]
+                    # Adding same edges as boundary to  grid_ggd[grid_number].space[space_number].objects_per_dimension[2].object[:].boundary[1:4]
+                    for (boundary_ind, edge_pair) in enumerate([(1, 2), (2, 4), (4, 3), (3, 1)])
+                        edge_nodes = [o2.object[ic].nodes[icorner] for icorner in edge_pair]
+                        existing_edge_ind = search_edges(o1, edge_nodes)
+                        if existing_edge_ind == 0
+                            o1.object[edge_ind].nodes = edge_nodes
+                            o1.object[edge_ind].measure = distance_between_nodes(o0, edge_nodes)
+                            o2.object[ic].boundary[boundary_ind].index = edge_ind
+                            add_subset_element!(subset_faces, sn, 1, edge_ind)
+                            edge_ind += 1
+                        else
+                            o2.object[ic].boundary[boundary_ind].index = existing_edge_ind
+                        end
+                    end
+                    add_subset_element!(subset_cells, sn, 2, ic)
                     if cuts_found
                         # add_subset_element!(subset, sn, dim, index, ix, iy, in_subset=(x...) -> true; kwargs...)
-                        add_subset_element!(subset_core, sn, 2, ic, ix, iy, in_core; cuts...)
-                        add_subset_element!(subset_sol, sn, 2, ic, ix, iy, in_sol; cuts...)
-                        add_subset_element!(subset_idr, sn, 2, ic, ix, iy, in_idr; cuts...)
-                        add_subset_element!(subset_odr, sn, 2, ic, ix, iy, in_odr; cuts...)
+                        add_subset_element!(subset_core, sn, 2, ic, in_core; ix=ix, iy=iy, cuts...)
+                        add_subset_element!(subset_sol, sn, 2, ic, in_sol; ix=ix, iy=iy, cuts...)
+                        add_subset_element!(subset_idr, sn, 2, ic, in_idr; ix=ix, iy=iy, cuts...)
+                        add_subset_element!(subset_odr, sn, 2, ic, in_odr; ix=ix, iy=iy, cuts...)
+                    end
+                end
+            end
+
+            
+            if cuts_found
+                for iy in 1:ny
+                    for ix in 1:nx
+                        ic::Int = (iy - 1) * nx + ix
+                        for boundary_ind in 1:4
+                            edge_ind = o2.object[ic].boundary[boundary_ind].index
+                            add_subset_element!(subset_cc, sn, 1, edge_ind, is_core_cut; ix=ix, iy=iy, nx=nx, o2=o2, edge_ind=edge_ind, cuts...)
+                        end
                     end
                 end
             end
