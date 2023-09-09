@@ -8,6 +8,32 @@ function test_generate_test_data()
     return true
 end
 
+function test_ind_conversion()
+    nx = 92
+    ny = 38
+    success = true
+    for iy = 1:ny
+        for ix = 1:nx
+            cxy = SOLPS2IMAS.ctoxy(SOLPS2IMAS.xytoc(ix, iy; nx=nx); nx=nx)
+            if cxy != (ix, iy)
+                ic = SOLPS2IMAS.xytoc(ix, iy; nx=nx)
+                println("ic: ", ic, ", (ix, iy): (", ix, ", ", iy, "), converted_ix,iy: ", cxy)
+                success = false
+            end
+        end
+    end
+
+    for ic = 1:nx*ny
+        cic = SOLPS2IMAS.xytoc(SOLPS2IMAS.ctoxy(ic; nx=nx)...; nx=nx)
+        if cic != ic
+            ix, iy = SOLPS2IMAS.ctoxy(ic; nx=nx)
+            println("ic: ", ic, ", (ix, iy): (", ix, ", ", iy, "), converted_ic: ", cic)
+            success = false
+        end
+    end
+    return success
+end
+
 function test_read_b2_output()
     contents = SOLPS2IMAS.read_b2_output("$(@__DIR__)/../samples/b2fstate")
     nt = contents["dim"]["time"]
@@ -55,7 +81,7 @@ function test_solps2imas()
     gsdesc = "$(@__DIR__)/../samples/gridspacedesc.yml"
     b2t = SOLPS2IMAS.read_b2_output(b2output)
     nx = b2t["dim"]["nx"]
-    dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output, gsdesc)
+    @time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output, gsdesc)
     # Check time stamp 3 at iy=4, ix=5
     it = 3
     iy = 4
@@ -67,6 +93,7 @@ end
 
 @testset "omasstuff" begin
     @test SOLPS2IMAS.try_omas() === nothing
+    @test test_ind_conversion()
     @test test_read_b2_output()
     @test test_solps2imas()
 end
