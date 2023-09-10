@@ -1,7 +1,7 @@
 module SOLPS2IMAS
 
 using Revise
-using OMAS: dd as OMAS_dd
+import OMAS
 using NCDatasets: Dataset, dimnames
 using YAML: load_file as YAML_load_file
 export try_omas
@@ -12,7 +12,7 @@ export solps2imas
 
 
 function try_omas()
-    ids = OMAS_dd()
+    ids = OMAS.dd()
     resize!(ids.equilibrium.time_slice, 1)
     ids.equilibrium.time_slice[1].profiles_1d.psi = [0.0, 1.0, 2.0, 3.9]
     return nothing
@@ -571,13 +571,31 @@ function neighbour_inds(ic; nx, ny, leftcut, rightcut)
 end
 
 
-function attach_neightbours(cells; nx, ny, leftcut, rightcut, kwargs...)
+function attach_neightbours(cells, edges; nx, ny, leftcut, rightcut, kwargs...)
     for (ic, cell) in enumerate(cells)
         for neighbour_ind in neighbour_inds(ic; nx=nx, ny=ny, leftcut=leftcut, rightcut=rightcut)
             for boundary in cell.boundary
                 for neighbour_boundary in cells[neighbour_ind].boundary
                     if boundary.index == neighbour_boundary.index && neighbour_ind ∉ boundary.neighbours
                         append!(boundary.neighbours, neighbour_ind)
+                    end
+                end
+            end
+        end
+    end
+    for (ic, cell) in enumerate(cells)
+        for edge_ind in [bnd.index for bnd in cell.boundary]
+            neighbour_edge_inds = [bnd.index for bnd in cell.boundary]
+            for neighbour_ind in neighbour_inds(ic; nx=nx, ny=ny, leftcut=leftcut, rightcut=rightcut)
+                union!(neighbour_edge_inds, [bnd.index for bnd in cells[neighbour_ind].boundary])
+            end
+            setdiff!(neighbour_edge_inds, edge_ind)
+            for neighbour_edge_ind in neighbour_edge_inds
+                for edge_bnd in edges[edge_ind].boundary
+                    for neighbour_edge_bnd in edges[neighbour_edge_ind].boundary
+                        if edge_bnd.index == neighbour_edge_bnd.index && neighbour_edge_ind ∉ edge_bnd.neighbours
+                            append!(edge_bnd.neighbours, neighbour_edge_ind)
+                        end
                     end
                 end
             end
@@ -701,6 +719,24 @@ function get_grid_subset_with_index(grid_ggd, grid_subset_index)
 end
 
 
+function get_subset_boundary_inds(space::OMAS.edge_profiles__grid_ggd___space, subset::OMAS.edge_profiles__grid_ggd___grid_subset)
+    nD = subset.element[1].object[1].dimension
+    if nD > 0
+        nD_objects = space.objects_per_dimension[nD].object
+        # nm1D_objects = space.objects_per_dimension[nD]
+        elements = [nD_objects[ele.object[1].index] for ele in subset.element]
+        boundary_inds = []
+        for ele in elements
+            for bnd in ele.boundary
+                symdiff!(boundary_inds, bnd.neighbours)
+            end
+        end
+        return boundary_inds
+    end
+    return []
+end
+
+
 """
     solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
 
@@ -711,7 +747,7 @@ YAML file. Returns data in OMAS.dd datastructure.
 """
 function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
     # Initialize an empty OMAS data structre
-    ids = OMAS_dd()
+    ids = OMAS.dd()
 
     # Setup the grid first
     gmtry = read_b2_output(b2gmtry)
@@ -781,13 +817,17 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
             for i = 1:(ncell * 4)
                 nodes[i].geometry = [0.0, 0.0]
                 edges[i].nodes = [0, 0]
+                resize!(edges[i].boundary, 2)
+                for bnd in edges[i].boundary
+                    bnd.neighbours = Int64[]
+                end
             end
             # Initialize nodes and boundaries for cells
             for i = 1:(ncell)
                 cells[i].nodes = [0, 0, 0, 0]
                 resize!(cells[i].boundary, 4)
-                for jj in 1:4
-                    cells[i].boundary[jj].neighbours = Int64[]
+                for bnd in cells[i].boundary
+                    bnd.neighbours = Int64[]
                 end
             end
 
@@ -824,6 +864,9 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                         existing_edge_ind = search_edges(edges, edge_nodes)
                         if existing_edge_ind == 0
                             edges[edge_ind].nodes = edge_nodes
+                            for (ii, edge_bnd) in enumerate(edges[edge_ind].boundary)
+                                edge_bnd.index = edge_nodes[ii]
+                            end
                             edges[edge_ind].measure = distance_between_nodes(nodes, edge_nodes)
                             cells[ic].boundary[boundary_ind].index = edge_ind
                             add_subset_element!(subset_faces, sn, 1, edge_ind)
@@ -846,7 +889,7 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
             end
             if cuts_found
                 # Add boundaries
-                attach_neightbours(cells; nx=nx, ny=ny, cuts...)
+                attach_neightbours(cells, edges; nx=nx, ny=ny, cuts...)
                 # Adding edges to subsets
                 for iy = 1:ny
                     for ix = 1:nx
