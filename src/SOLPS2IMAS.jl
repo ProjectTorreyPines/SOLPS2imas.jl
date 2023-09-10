@@ -409,6 +409,25 @@ function is_inner_target(; ix, boundary_ind)
 end
 
 
+"""
+    is_core_boundary(; ix, iy, boundary_ind, bottomcut, leftcut, rightcut, kwargs...)
+
+Returns true if boundary_ind of a cell at ix, iy is on core boundary (central blank spot boundary)
+"""
+function is_core_boundary(; ix, iy, boundary_ind, bottomcut, leftcut, rightcut, kwargs...)
+    return bottomcut + 2 == iy && leftcut + 1 < ix < rightcut + 2 && boundary_ind == 1
+end
+
+
+"""
+    is_separatix(; iy, boundary_ind, topcut, kwargs...)
+
+Returns true if boundary_ind of a cell at ix, iy is on separatix
+"""
+function is_separatix(; iy, boundary_ind, topcut, kwargs...)
+    return topcut + 2 == iy && boundary_ind == 1
+end
+
 
 """
    add_subset_element!(subset, sn, dim, index, ix, iy, in_subset=(x...)->true; kwargs...)
@@ -494,7 +513,7 @@ function search_edges(edges, edge_nodes)
     for ii in eachindex(edges)
         if edge_nodes[2] == edges[ii].nodes[1] && edge_nodes[1] == edges[ii].nodes[2]
             return ii
-        else edge_nodes[1] == edges[ii].nodes[1] && edge_nodes[2] == edges[ii].nodes[2]
+        elseif edge_nodes[2] == edges[ii].nodes[1] && edge_nodes[1] == edges[ii].nodes[2]
             return ii
         end
     end
@@ -745,6 +764,8 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                 subset_pfrcut = get_grid_subset_with_index(grid_ggd, 8)      # pfr_cut have index 8
                 subset_othroat = get_grid_subset_with_index(grid_ggd, 9)     # outer_throat index 9
                 subset_ithroat = get_grid_subset_with_index(grid_ggd, 10)    # outer_throat index 10
+                subset_corebnd = get_grid_subset_with_index(grid_ggd, 15)     # outer_throat index 15
+                subset_separatix = get_grid_subset_with_index(grid_ggd, 16)    # outer_throat index 16
             end
             subset_otarget = get_grid_subset_with_index(grid_ggd, 13)     # outer_target index 13
             subset_itarget = get_grid_subset_with_index(grid_ggd, 14)    # outer_target index 14
@@ -837,6 +858,8 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                             add_subset_element!(subset_ithroat, sn, 1, edge_ind, is_inner_throat; ix, iy, boundary_ind, cuts...)
                             add_subset_element!(subset_otarget, sn, 1, edge_ind, is_outer_target; ix, nx, boundary_ind)
                             add_subset_element!(subset_itarget, sn, 1, edge_ind, is_inner_target; ix, boundary_ind)
+                            add_subset_element!(subset_corebnd, sn, 1, edge_ind, is_core_boundary; ix, iy, boundary_ind, cuts...)
+                            add_subset_element!(subset_separatix, sn, 1, edge_ind, is_separatix; iy, boundary_ind, cuts...)
                         end
                     end
                 end
