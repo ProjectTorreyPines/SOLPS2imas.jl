@@ -430,14 +430,14 @@ end
 
 
 """
-   add_subset_element!(subset, sn, dim, index, ix, iy, in_subset=(x...)->true; kwargs...)
+    add_subset_element!(subset, sn, dim, index::Int, in_subset=(x...)->true; kwargs...)
 
 Adds the geometric element in subset object (assumed to be resized already) at element dd index dd_ind,
 with space number sn, dimension dim, index. To determine,
 if the element should be added or not, a function in_subset can be provided that gets the arguments
 (kwargs...). These functions will be in_core, in_sol etc as difined above.
 """
-function add_subset_element!(subset, sn, dim, index, in_subset=(x...)->true; kwargs...)
+function add_subset_element!(subset, sn, dim, index::Int, in_subset=(x...)->true; kwargs...)
     if in_subset(; kwargs...)
         dd_ind = length(subset.element) + 1
         resize!(subset.element, dd_ind)
@@ -445,6 +445,26 @@ function add_subset_element!(subset, sn, dim, index, in_subset=(x...)->true; kwa
         subset.element[dd_ind].object[1].space = sn
         subset.element[dd_ind].object[1].dimension = dim
         subset.element[dd_ind].object[1].index = index
+    end
+end
+
+
+"""
+    add_subset_element!(subset, sn, dim, index::Vector{Int}, in_subset=(x...)->true; kwargs...)
+
+Overloaded to work differently (faster) with list of indices to be added.
+"""
+function add_subset_element!(subset, sn, dim, index::Vector{Int}, in_subset=(x...)->true; kwargs...)
+    if in_subset(; kwargs...)
+        dd_start_ind = length(subset.element) + 1
+        resize!(subset.element, length(subset.element) + length(index))
+        dd_stop_ind = length(subset.element)
+        for (ii, dd_ind) in enumerate(dd_start_ind:dd_stop_ind)
+            resize!(subset.element[dd_ind].object, 1)
+            subset.element[dd_ind].object[1].space = sn
+            subset.element[dd_ind].object[1].dimension = dim
+            subset.element[dd_ind].object[1].index = index[ii]
+        end
     end
 end
 
@@ -722,18 +742,50 @@ end
 function get_subset_boundary_inds(space::OMAS.edge_profiles__grid_ggd___space, subset::OMAS.edge_profiles__grid_ggd___grid_subset)
     nD = subset.element[1].object[1].dimension
     if nD > 0
-        nD_objects = space.objects_per_dimension[nD].object
-        # nm1D_objects = space.objects_per_dimension[nD]
+        nD_objects = space.objects_per_dimension[nD + 1].object
         elements = [nD_objects[ele.object[1].index] for ele in subset.element]
-        boundary_inds = []
+        boundary_inds = Int[]
         for ele in elements
-            for bnd in ele.boundary
-                symdiff!(boundary_inds, bnd.neighbours)
-            end
+            symdiff!(boundary_inds, [bnd.index for bnd in ele.boundary])
+
         end
         return boundary_inds
     end
     return []
+end
+
+
+function get_subset_boundary(space::OMAS.edge_profiles__grid_ggd___space, subset::OMAS.edge_profiles__grid_ggd___grid_subset)
+    ret_subset = OMAS.edge_profiles__grid_ggd___grid_subset()
+    boundary_inds = get_subset_boundary_inds(space, subset)
+    bnd_dim = subset.element[1].object[1].dimension - 1
+    space_number = subset.element[1].object[1].space
+    add_subset_element!(ret_subset, space_number, bnd_dim, boundary_inds)
+    return ret_subset.element
+end
+
+
+function get_subset_space(space::OMAS.edge_profiles__grid_ggd___space, subset::OMAS.edge_profiles__grid_ggd___grid_subset)
+    nD = subset.element[1].object[1].dimension
+    nD_objects = space.objects_per_dimension[nD+1].object
+    return [nD_objects[ele.object[1].index] for ele in subset.element]
+end
+
+"""
+    subset_do(set_operator, itrs::Vararg{Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element}})
+
+Function to perform any set operation (intersect, union, setdiff etc.) on subset.element to
+generate a list of elements to go to subset object.
+Note: that the arguments are subset.element (not the subset itself). Similarly, the return object is a
+list of OMAS.edge_profiles__grid_ggd___grid_subset___element.
+"""
+function subset_do(set_operator, itrs::Vararg{Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element}})
+    ele_inds = set_operator([[ele.object[1].index for ele in set_elements] for set_elements in itrs]...)
+    ret_subset = OMAS.edge_profiles__grid_ggd___grid_subset()
+    dim = itrs[1][1].object[1].dimension
+    space_number = itrs[1][1].object[1].space
+    add_subset_element!(ret_subset, space_number, dim, ele_inds)
+    return ret_subset.element
 end
 
 
@@ -896,16 +948,26 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                         for boundary_ind = 1:4
                             edge_ind = cells[xytoc(ix, iy; nx)].boundary[boundary_ind].index
                             add_subset_element!(subset_corecut, sn, 1, edge_ind, is_core_cut; ix, iy, cells, nx, boundary_ind, cuts...)
-                            add_subset_element!(subset_pfrcut, sn, 1, edge_ind, is_pfr_cut; ix, iy, cells, nx, boundary_ind, cuts...)
+                            # add_subset_element!(subset_pfrcut, sn, 1, edge_ind, is_pfr_cut; ix, iy, cells, nx, boundary_ind, cuts...)
                             add_subset_element!(subset_othroat, sn, 1, edge_ind, is_outer_throat; ix, iy, boundary_ind, cuts...)
                             add_subset_element!(subset_ithroat, sn, 1, edge_ind, is_inner_throat; ix, iy, boundary_ind, cuts...)
                             add_subset_element!(subset_otarget, sn, 1, edge_ind, is_outer_target; ix, nx, boundary_ind)
                             add_subset_element!(subset_itarget, sn, 1, edge_ind, is_inner_target; ix, boundary_ind)
-                            add_subset_element!(subset_corebnd, sn, 1, edge_ind, is_core_boundary; ix, iy, boundary_ind, cuts...)
-                            add_subset_element!(subset_separatix, sn, 1, edge_ind, is_separatix; iy, boundary_ind, cuts...)
+                            # add_subset_element!(subset_corebnd, sn, 1, edge_ind, is_core_boundary; ix, iy, boundary_ind, cuts...)
+                            # add_subset_element!(subset_separatix, sn, 1, edge_ind, is_separatix; iy, boundary_ind, cuts...)
                         end
                     end
                 end
+                core_boundary_elements = get_subset_boundary(space, subset_core)
+                sol_boundary_elements = get_subset_boundary(space, subset_sol)
+                idr_boundary_elements = get_subset_boundary(space, subset_idr)
+                odr_boundary_elements = get_subset_boundary(space, subset_odr)
+                subset_pfrcut.element = subset_do(intersect, idr_boundary_elements, odr_boundary_elements)
+                subset_corebnd.element = subset_do(setdiff, core_boundary_elements, sol_boundary_elements)
+                subset_separatix.element = subset_do(intersect, sol_boundary_elements,
+                                                                   subset_do(union, core_boundary_elements,
+                                                                                       odr_boundary_elements,
+                                                                                       idr_boundary_elements))
             end
         end  # End of setting up space
     end

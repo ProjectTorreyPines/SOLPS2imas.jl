@@ -81,12 +81,47 @@ function test_solps2imas()
     gsdesc = "$(@__DIR__)/../samples/gridspacedesc.yml"
     b2t = SOLPS2IMAS.read_b2_output(b2output)
     nx = b2t["dim"]["nx"]
+    print("solps2imas() time: ")
     @time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output, gsdesc)
     # Check time stamp 3 at iy=4, ix=5
     it = 3
     iy = 4
     ix = 5
     @assert(b2t["data"]["ne2d"][3, iy, ix] == dd.edge_profiles.ggd[3].electrons.density[5].values[(iy - 1) * nx + ix])
+    # Checking if subsets obtained from set operations are same
+    # as using a brute force definition which is too dependent
+    # on the correct ordering of nodes in SOLPS data files.
+    cut_keys = ["leftcut", "rightcut", "bottomcut", "topcut"]
+    gmtry = SOLPS2IMAS.read_b2_output(b2gmtry)
+    ny = gmtry["dim"]["ny"]
+    cuts = Dict([(Symbol(key), gmtry["data"][key][1]) for key in cut_keys])
+    subset_pfrcut = SOLPS2IMAS.get_grid_subset_with_index(dd.edge_profiles.grid_ggd[1], 8)
+    subset_corebnd = SOLPS2IMAS.get_grid_subset_with_index(dd.edge_profiles.grid_ggd[1], 15)
+    subset_separatix= SOLPS2IMAS.get_grid_subset_with_index(dd.edge_profiles.grid_ggd[1], 16)
+    cells = dd.edge_profiles.grid_ggd[1].space[1].objects_per_dimension[3].object
+    subset_pfrcut_element_list = [ele.object[1].index for ele in subset_pfrcut.element]
+    subset_corebnd_element_list = [ele.object[1].index for ele in subset_corebnd.element]
+    subset_separatix_element_list = [ele.object[1].index for ele in subset_separatix.element]
+    brute_force_pfrcut_list = []
+    brute_force_corebnd_list = []
+    brute_force_separatix_list = []
+    for iy = 1:ny
+        for ix = 1:nx
+            for boundary_ind = 1:4
+                edge_ind = cells[SOLPS2IMAS.xytoc(ix, iy; nx)].boundary[boundary_ind].index
+                if SOLPS2IMAS.is_pfr_cut(;ix, iy, cells, nx, boundary_ind, cuts...)
+                    append!(brute_force_pfrcut_list, edge_ind)
+                elseif SOLPS2IMAS.is_core_boundary(; ix, iy, boundary_ind, cuts...)
+                    append!(brute_force_corebnd_list, edge_ind)
+                elseif SOLPS2IMAS.is_separatix(; iy, boundary_ind, cuts...)
+                    append!(brute_force_separatix_list, edge_ind)
+                end
+            end
+        end
+    end
+    @assert(Set(brute_force_pfrcut_list) == Set(subset_pfrcut_element_list))
+    @assert(Set(brute_force_corebnd_list) == Set(subset_corebnd_element_list))
+    @assert(Set(brute_force_separatix_list) == Set(subset_separatix_element_list))
     return true
 end
 
