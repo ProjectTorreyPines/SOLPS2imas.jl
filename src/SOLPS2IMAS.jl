@@ -551,24 +551,32 @@ function distance_between_nodes(nodes, node_inds)
 end
 
 
-function neighbour_inds(ic; nx, ny, leftcut, rightcut)
+function neighbour_inds(ic; nx, ny, leftcut, rightcut, topcut, bottomcut)
     ix, iy = ctoxy(ic, nx=nx)
     neighbour_x_inds = []
     neighbour_y_inds = []
     if ix > 1
-        if ix == rightcut + 2  # left most outter divertor region
-            append!(neighbour_x_inds, leftcut + 1)
-        elseif ix == leftcut + 2  # left most core region
-            append!(neighbour_x_inds, rightcut + 1)
+        if bottomcut + 1 < iy ≤ topcut + 1
+            if ix == rightcut + 2  # left most outter divertor region
+                append!(neighbour_x_inds, leftcut + 1)
+            elseif ix == leftcut + 2  # left most core region
+                append!(neighbour_x_inds, rightcut + 1)
+            else
+                append!(neighbour_x_inds, ix - 1)
+            end
         else
             append!(neighbour_x_inds, ix - 1)
         end
     end
     if ix < nx
-        if ix == leftcut + 1  # right most inner divertor regio
-            append!(neighbour_x_inds, rightcut + 2)
-        elseif ix == rightcut + 1  # right most core region
-            append!(neighbour_x_inds, leftcut + 2)
+        if bottomcut + 1 < iy ≤ topcut + 1
+            if ix == leftcut + 1  # right most inner divertor regio
+                append!(neighbour_x_inds, rightcut + 2)
+            elseif ix == rightcut + 1  # right most core region
+                append!(neighbour_x_inds, leftcut + 2)
+            else
+                append!(neighbour_x_inds, ix + 1)
+            end
         else
             append!(neighbour_x_inds, ix + 1)
         end
@@ -591,9 +599,27 @@ function neighbour_inds(ic; nx, ny, leftcut, rightcut)
 end
 
 
-function attach_neightbours(cells, edges; nx, ny, leftcut, rightcut, kwargs...)
+function get_neighbour_inds(ic, gmtry, it)
+    nx = gmtry["dim"]["nx"]
+    ny = gmtry["dim"]["ny"]
+    ix, iy = ctoxy(ic, nx=nx)
+    neighbour_inds = []
+    # println(ix, ", ", iy)
+    for neighbour in ["left", "right", "top", "bottom"]
+        nix = gmtry["data"][neighbour*"ix"][it, iy, ix] + 2
+        niy = gmtry["data"][neighbour*"iy"][it, iy, ix] + 2
+        # println(neighbour, ": ", nix, ", ", niy)
+        if 1 ≤ nix ≤ nx && 1 ≤ niy ≤ ny
+            append!(neighbour_inds, xytoc(nix, niy; nx=nx))
+        end
+    end
+    return neighbour_inds
+end
+
+
+function attach_neightbours(cells, edges, gmtry, it)
     for (ic, cell) in enumerate(cells)
-        for neighbour_ind in neighbour_inds(ic; nx=nx, ny=ny, leftcut=leftcut, rightcut=rightcut)
+        for neighbour_ind in get_neighbour_inds(ic, gmtry, it)
             for boundary in cell.boundary
                 for neighbour_boundary in cells[neighbour_ind].boundary
                     if boundary.index == neighbour_boundary.index && neighbour_ind ∉ boundary.neighbours
@@ -606,7 +632,7 @@ function attach_neightbours(cells, edges; nx, ny, leftcut, rightcut, kwargs...)
     for (ic, cell) in enumerate(cells)
         for edge_ind in [bnd.index for bnd in cell.boundary]
             neighbour_edge_inds = [bnd.index for bnd in cell.boundary]
-            for neighbour_ind in neighbour_inds(ic; nx=nx, ny=ny, leftcut=leftcut, rightcut=rightcut)
+            for neighbour_ind in get_neighbour_inds(ic, gmtry, it)
                 union!(neighbour_edge_inds, [bnd.index for bnd in cells[neighbour_ind].boundary])
             end
             setdiff!(neighbour_edge_inds, edge_ind)
@@ -954,7 +980,7 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
             end
             if cuts_found
                 # Add boundaries
-                attach_neightbours(cells, edges; nx=nx, ny=ny, cuts...)
+                attach_neightbours(cells, edges, gmtry, it)
                 # Adding edges to subsets
                 for iy = 1:ny
                     for ix = 1:nx
