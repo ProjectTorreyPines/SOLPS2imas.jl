@@ -765,24 +765,35 @@ function get_subset_boundary(space::OMAS.edge_profiles__grid_ggd___space, subset
 end
 
 
-function get_subset_space(space::OMAS.edge_profiles__grid_ggd___space, subset::OMAS.edge_profiles__grid_ggd___grid_subset)
-    nD = subset.element[1].object[1].dimension
+function get_subset_space(space::OMAS.edge_profiles__grid_ggd___space,
+                          elements::Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element})
+    nD = elements[1].object[1].dimension
     nD_objects = space.objects_per_dimension[nD+1].object
-    return [nD_objects[ele.object[1].index] for ele in subset.element]
+    return [nD_objects[ele.object[1].index] for ele in elements]
 end
 
 """
-    subset_do(set_operator, itrs::Vararg{Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element}})
+    subset_do(set_operator, itrs::Vararg{Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element}};
+              space::OMAS.edge_profiles__grid_ggd___space=OMAS.edge_profiles__grid_ggd___space(),
+              use_nodes=false)
 
 Function to perform any set operation (intersect, union, setdiff etc.) on subset.element to
-generate a list of elements to go to subset object.
+generate a list of elements to go to subset object. If use_nodes is true, the set operation will be
+applied on the set of nodes from subset.element, space argument is required for this.
 Note: that the arguments are subset.element (not the subset itself). Similarly, the return object is a
 list of OMAS.edge_profiles__grid_ggd___grid_subset___element.
 """
-function subset_do(set_operator, itrs::Vararg{Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element}})
-    ele_inds = set_operator([[ele.object[1].index for ele in set_elements] for set_elements in itrs]...)
+function subset_do(set_operator, itrs::Vararg{Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element}};
+                   space::OMAS.edge_profiles__grid_ggd___space=OMAS.edge_profiles__grid_ggd___space(),
+                   use_nodes=false)
+    if use_nodes
+        ele_inds = set_operator([union([obj.nodes for obj in get_subset_space(space, set_elements)]...) for set_elements in itrs]...)
+        dim = 0
+    else
+        ele_inds = set_operator([[ele.object[1].index for ele in set_elements] for set_elements in itrs]...)
+        dim = itrs[1][1].object[1].dimension
+    end
     ret_subset = OMAS.edge_profiles__grid_ggd___grid_subset()
-    dim = itrs[1][1].object[1].dimension
     space_number = itrs[1][1].object[1].space
     add_subset_element!(ret_subset, space_number, dim, ele_inds)
     return ret_subset.element
@@ -851,12 +862,14 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                 subset_corecut = get_grid_subset_with_index(grid_ggd, 7)     # core_cut have index 7
                 subset_pfrcut = get_grid_subset_with_index(grid_ggd, 8)      # pfr_cut have index 8
                 subset_othroat = get_grid_subset_with_index(grid_ggd, 9)     # outer_throat index 9
-                subset_ithroat = get_grid_subset_with_index(grid_ggd, 10)    # outer_throat index 10
-                subset_corebnd = get_grid_subset_with_index(grid_ggd, 15)     # outer_throat index 15
-                subset_separatix = get_grid_subset_with_index(grid_ggd, 16)    # outer_throat index 16
+                subset_ithroat = get_grid_subset_with_index(grid_ggd, 10)    # inner_throat index 10
+                subset_corebnd = get_grid_subset_with_index(grid_ggd, 15)    # core inner boundary index 15
+                subset_separatix = get_grid_subset_with_index(grid_ggd, 16)  # separatix index 16
+                subset_otsep = get_grid_subset_with_index(grid_ggd, 103)     # outer target separatix meeting point 103
+                subset_itsep = get_grid_subset_with_index(grid_ggd, 104)     # inner target separatix meeting point 104
             end
             subset_otarget = get_grid_subset_with_index(grid_ggd, 13)     # outer_target index 13
-            subset_itarget = get_grid_subset_with_index(grid_ggd, 14)    # outer_target index 14
+            subset_itarget = get_grid_subset_with_index(grid_ggd, 14)     # inner_target index 14
 
             # Resizing objects to hold cell geometry data
             # Should be fewer than this many points, but this way we won't under-fill
@@ -968,6 +981,8 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                                                                    subset_do(union, core_boundary_elements,
                                                                                        odr_boundary_elements,
                                                                                        idr_boundary_elements))
+                subset_otsep.element = subset_do(intersect, subset_separatix.element, subset_otarget.element; space, use_nodes=true)
+                subset_itsep.element = subset_do(intersect, subset_separatix.element, subset_itarget.element; space, use_nodes=true)
             end
         end  # End of setting up space
     end
