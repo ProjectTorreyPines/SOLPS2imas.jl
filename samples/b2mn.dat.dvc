@@ -1,0 +1,12 @@
+md5: c408a3f9242593adab848e2899868371
+frozen: true
+deps:
+- path: ITER_Lore_2296_00000/run_restart/b2mn.dat
+  repo:
+    url: git@github.com:ProjectTorreyPines/TestSamples.git
+    rev_lock: dc2da57d329888998e008f766e620ee914541d2f
+outs:
+- md5: 26c5edd33fed9bff73cda8db17c591db
+  size: 1560
+  hash: md5
+  path: b2mn.dat
