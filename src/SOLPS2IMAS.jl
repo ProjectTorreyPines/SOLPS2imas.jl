@@ -1,10 +1,9 @@
 module SOLPS2IMAS
 
 using Revise
-using OMAS: dd as OMAS_dd
+import OMAS
 using NCDatasets: Dataset, dimnames
 using YAML: load_file as YAML_load_file
-
 export try_omas
 export generate_test_data
 export read_b2_output
@@ -13,7 +12,7 @@ export solps2imas
 
 
 function try_omas()
-    ids = OMAS_dd()
+    ids = OMAS.dd()
     resize!(ids.equilibrium.time_slice, 1)
     ids.equilibrium.time_slice[1].profiles_1d.psi = [0.0, 1.0, 2.0, 3.9]
     return nothing
@@ -116,6 +115,21 @@ function read_b2time_output(filename)
         end
     end
     return ret_dict
+end
+
+
+function read_b2mn_output(filename)
+    lines = open(filename) do f
+        readlines(f)
+    end
+    contents = Dict()
+    for line in lines
+        if startswith(line, "'")
+            splits = split(line, "'"; keepempty=false)
+            contents[splits[1]] = parse(Float64, splits[end])
+        end
+    end
+    return contents
 end
 
 
@@ -246,62 +260,248 @@ end
 
 
 """
-   in_core(ix, iy; topcut, bottomcut, leftcut, rightcut)
+    xytoc(ix, iy; nx)
 
-Returns true if cell indexed ix, iy lie inside the core
+Converts SOLPS indices for crx, cry (ix, iy) that go from 1:nx, 1:ny
+into the linear index ic used in IMAS for corresponding cells
 """
-function in_core(ix, iy; topcut, bottomcut, leftcut, rightcut)
-    return bottomcut + 1 < iy < topcut + 2 && leftcut < ix < rightcut + 2
+function xytoc(ix, iy; nx)
+    ic::Int = (iy - 1) * nx + ix
+    return ic
 end
 
 
 """
-   in_sol(ix, iy; topcut, bottomcut, leftcut, rightcut)
+    ctoxy(ic; nx)
+
+Inverse of xytoc
+"""
+function ctoxy(ic; nx)
+    ix::Int = mod(ic - 1, nx) + 1
+    iy::Int = (ic - 1) ÷ nx + 1
+    return ix, iy
+end
+
+
+"""
+   in_core(; ix, iy, topcut, bottomcut, leftcut, rightcut)
+
+Returns true if cell indexed ix, iy lie inside the core
+"""
+function in_core(; ix, iy, topcut, bottomcut, leftcut, rightcut)
+    return bottomcut + 1 < iy < topcut + 2 && leftcut + 1 < ix < rightcut + 2
+end
+
+
+"""
+    in_sol(; iy, topcut, kwargs...)
 
 Returns true if cell indexed ix, iy lie inside the SOL
 """
-function in_sol(ix, iy; topcut, bottomcut, leftcut, rightcut)
+function in_sol(; iy, topcut, kwargs...)
     return topcut + 1 < iy
 end
 
 
 """
-   in_idr(ix, iy; topcut, bottomcut, leftcut, rightcut)
+    in_idr(; ix, iy, topcut, bottomcut, leftcut, kwargs...)
 
 Returns true if cell indexed ix, iy lie inside the inner divertor region
 """
-function in_idr(ix, iy; topcut, bottomcut, leftcut, rightcut)
-    return bottomcut + 1 < iy < topcut + 2 && ix < leftcut + 1
+function in_idr(; ix, iy, topcut, bottomcut, leftcut, kwargs...)
+    return bottomcut + 1 < iy < topcut + 2 && ix < leftcut + 2
 end
 
 
 """
-   in_odr(ix, iy; topcut, bottomcut, leftcut, rightcut)
+    in_odr(; ix, iy, topcut, bottomcut, rightcut, kwargs...)
 
 Returns true if cell indexed ix, iy lie inside the outer divertor region
 """
-function in_odr(ix, iy; topcut, bottomcut, leftcut, rightcut)
+function in_odr(; ix, iy, topcut, bottomcut, rightcut, kwargs...)
     return bottomcut + 1 < iy < topcut + 2 && rightcut + 1 < ix
+end
+
+# Following convention is used to index the edges of a cell
+# This ends up going around the cell starting with bottom x-edge,
+# right y-edge, top x-edge, and left y-edge
+# Thus, x-edges will have odd boundary index and y_edges will have even
+# List of tuples (boundary_ind, (corner pair forming edge))
+chosen_edge_order = [(1, (1, 2)),
+                     (2, (2, 4)),
+                     (3, (4, 3)),
+                     (4, (3, 1))]
+
+
+"""
+    is_x_aligned(;boundary_ind)
+
+y_aligned edges will have odd boundary_ind based on chosen order of numbering them
+"""
+function is_x_aligned(;boundary_ind)
+    return mod(boundary_ind, 2) == 1
 end
 
 
 """
-   add_subset_element!(subset, sn, dim, index, ix, iy, in_subset=(x...)->true; kwargs...)
+    is_y_aligned(; boundary_ind)
+
+y_aligned edges will have even boundary_ind based on chosen order of numbering them
+"""
+function is_y_aligned(; boundary_ind)
+    return mod(boundary_ind, 2) == 0
+end
+
+"""
+   is_core_cut(; ix, iy, nx, cells, boundary_ind, topcut, bottomcut, leftcut, rightcut)
+
+Returns true if boundary_ind of a cell at ix, iy is on core_cut (Y-aliged edge)
+"""
+function is_core_cut(; ix, iy, cells, nx, boundary_ind, topcut, bottomcut, leftcut, rightcut)
+    if bottomcut + 1 < iy < topcut + 2 && ix == leftcut + 2 && mod(boundary_ind, 2) == 0
+        ixr = rightcut + 1
+        this_cell = cells[xytoc(ix, iy; nx=nx)]
+        other_side_cell_ind = xytoc(ixr, iy; nx=nx)  # Cell on the other side of core cut
+        return other_side_cell_ind ∈ this_cell.boundary[boundary_ind].neighbours
+    end
+    return false
+end
+
+
+"""
+   is_pfr_cut(; ix, iy, nx, cells, boundary_ind, topcut, bottomcut, leftcut, rightcut)
+
+Returns true if boundary_ind of a cell at ix, iy is on core_cut (Y-aliged edge)
+"""
+function is_pfr_cut(; ix, iy,  cells, nx, boundary_ind, topcut, bottomcut, leftcut, rightcut)
+    if bottomcut + 1 < iy < topcut + 2 && ix == leftcut + 1 && mod(boundary_ind, 2) == 0
+        ixr = rightcut + 2
+        this_cell = cells[xytoc(ix, iy; nx=nx)]
+        other_side_cell_ind = xytoc(ixr, iy; nx=nx)  # Cell on the other side of pfr cut
+        return other_side_cell_ind ∈ this_cell.boundary[boundary_ind].neighbours
+    end
+    return false
+end
+
+
+"""
+    is_outer_throat(; ix, iy, boundary_ind, topcut, rightcut, kwargs...)
+
+Returns true if boundary_ind of a cell at ix, iy is on outer throat
+"""
+function is_outer_throat(; ix, iy, boundary_ind, topcut, rightcut, kwargs...)
+    return topcut + 1 < iy && ix == rightcut + 1 && boundary_ind == 2
+end
+
+
+"""
+    is_inner_throat(; ix, iy, boundary_ind, topcut, leftcut, kwargs...)
+
+Returns true if boundary_ind of a cell at ix, iy is on outer throat
+"""
+function is_inner_throat(; ix, iy, boundary_ind, topcut, leftcut, kwargs...)
+    return topcut + 1 < iy && ix == leftcut + 2 && boundary_ind == 2
+end
+
+
+"""
+    is_outer_midplane(; ix, jxa, boundary_ind)
+
+Returns true if boundary_ind of a cell at ix, iy is on outer midplane
+"""
+function is_outer_midplane(; ix, iy, jxa, boundary_ind, topcut, kwargs...)
+    # Note: USING CONVENTION to mark bottom edge of the midplane cell as midplane
+    return ix == jxa && iy > topcut + 1 && boundary_ind == 1
+end
+
+
+"""
+    is_inner_midplane(; ix, jxa, boundary_ind)
+
+Returns true if boundary_ind of a cell at ix, iy is on outer midplane
+"""
+function is_inner_midplane(; ix, iy, jxi, boundary_ind, topcut, kwargs...)
+    # Note: USING CONVENTION to mark bottom edge of the midplane cell as midplane
+    return ix == jxi && iy > topcut + 1 && boundary_ind == 1
+end
+
+
+"""
+    is_outer_target(; ix, nx, boundary_ind, kwargs...)
+
+Returns true if boundary_ind of a cell at ix, iy is on outer target
+"""
+function is_outer_target(; ix, nx, boundary_ind)
+    return ix == nx && boundary_ind == 2
+end
+
+
+"""
+    is_inner_target(; ix, boundary_ind, kwargs...)
+
+Returns true if boundary_ind of a cell at ix, iy is on inner target
+"""
+function is_inner_target(; ix, boundary_ind)
+    return ix == 1 && boundary_ind == 4
+end
+
+
+"""
+    is_core_boundary(; ix, iy, boundary_ind, bottomcut, leftcut, rightcut, kwargs...)
+
+Returns true if boundary_ind of a cell at ix, iy is on core boundary (central blank spot boundary)
+"""
+function is_core_boundary(; ix, iy, boundary_ind, bottomcut, leftcut, rightcut, kwargs...)
+    return bottomcut + 2 == iy && leftcut + 1 < ix < rightcut + 2 && boundary_ind == 1
+end
+
+
+"""
+    is_separatix(; iy, boundary_ind, topcut, kwargs...)
+
+Returns true if boundary_ind of a cell at ix, iy is on separatix
+"""
+function is_separatix(; iy, boundary_ind, topcut, kwargs...)
+    return topcut + 2 == iy && boundary_ind == 1
+end
+
+
+"""
+    add_subset_element!(subset, sn, dim, index::Int, in_subset=(x...)->true; kwargs...)
 
 Adds the geometric element in subset object (assumed to be resized already) at element dd index dd_ind,
-with space number sn, dimension dim, index index, for a cell in SOLPS mesh indices ix, iy. To determine,
+with space number sn, dimension dim, index. To determine,
 if the element should be added or not, a function in_subset can be provided that gets the arguments
-(ix, iy; kwargs...). These functions will be in_core, in_sol etc as difined above.
+(kwargs...). These functions will be in_core, in_sol etc as difined above.
 """
-function add_subset_element!(subset, sn, dim, index, ix=0, iy=0, in_subset=(x...)->true; kwargs...)
-    if in_subset(ix, iy; kwargs...)
+function add_subset_element!(subset, sn, dim, index::Int, in_subset=(x...)->true; kwargs...)
+    if in_subset(; kwargs...)
         dd_ind = length(subset.element) + 1
         resize!(subset.element, dd_ind)
         resize!(subset.element[dd_ind].object, 1)
         subset.element[dd_ind].object[1].space = sn
         subset.element[dd_ind].object[1].dimension = dim
         subset.element[dd_ind].object[1].index = index
-        dd_ind += 1
+    end
+end
+
+
+"""
+    add_subset_element!(subset, sn, dim, index::Vector{Int}, in_subset=(x...)->true; kwargs...)
+
+Overloaded to work differently (faster) with list of indices to be added.
+"""
+function add_subset_element!(subset, sn, dim, index::Vector{Int}, in_subset=(x...)->true; kwargs...)
+    if in_subset(; kwargs...)
+        dd_start_ind = length(subset.element) + 1
+        resize!(subset.element, length(subset.element) + length(index))
+        dd_stop_ind = length(subset.element)
+        for (ii, dd_ind) in enumerate(dd_start_ind:dd_stop_ind)
+            resize!(subset.element[dd_ind].object, 1)
+            subset.element[dd_ind].object[1].space = sn
+            subset.element[dd_ind].object[1].dimension = dim
+            subset.element[dd_ind].object[1].index = index[ii]
+        end
     end
 end
 
@@ -358,6 +558,132 @@ function search_points(ids, r, z)
         end
     end
     return indices
+end
+
+
+"""
+    search_edges(edges, edge_nodes)
+
+search if an edge with nodes as edge_nodes already exists
+"""
+function search_edges(edges, edge_nodes)
+    for ii in eachindex(edges)
+        if edge_nodes[2] == edges[ii].nodes[1] && edge_nodes[1] == edges[ii].nodes[2]
+            return ii
+        elseif edge_nodes[2] == edges[ii].nodes[1] && edge_nodes[1] == edges[ii].nodes[2]
+            return ii
+        end
+    end
+    return 0
+end
+
+
+"""
+    distance_between_nodes(nodes, node_inds)
+
+Return distance between two node indices
+"""
+function distance_between_nodes(nodes, node_inds)
+    return √(sum((nodes[node_inds[1]].geometry - nodes[node_inds[2]].geometry).^2))
+end
+
+
+function neighbour_inds(ic; nx, ny, leftcut, rightcut, topcut, bottomcut)
+    ix, iy = ctoxy(ic, nx=nx)
+    neighbour_x_inds = []
+    neighbour_y_inds = []
+    if ix > 1
+        if bottomcut + 1 < iy ≤ topcut + 1
+            if ix == rightcut + 2  # left most outter divertor region
+                append!(neighbour_x_inds, leftcut + 1)
+            elseif ix == leftcut + 2  # left most core region
+                append!(neighbour_x_inds, rightcut + 1)
+            else
+                append!(neighbour_x_inds, ix - 1)
+            end
+        else
+            append!(neighbour_x_inds, ix - 1)
+        end
+    end
+    if ix < nx
+        if bottomcut + 1 < iy ≤ topcut + 1
+            if ix == leftcut + 1  # right most inner divertor regio
+                append!(neighbour_x_inds, rightcut + 2)
+            elseif ix == rightcut + 1  # right most core region
+                append!(neighbour_x_inds, leftcut + 2)
+            else
+                append!(neighbour_x_inds, ix + 1)
+            end
+        else
+            append!(neighbour_x_inds, ix + 1)
+        end
+    end
+    if iy > 1
+        append!(neighbour_y_inds, iy - 1)
+    end
+    if iy < ny
+        append!(neighbour_y_inds, iy + 1)
+    end
+        
+    neighbour_inds = []
+    for x_ind in neighbour_x_inds
+        append!(neighbour_inds, xytoc(x_ind, iy; nx=nx))
+    end
+    for y_ind in neighbour_y_inds
+        append!(neighbour_inds, xytoc(ix, y_ind; nx=nx))
+    end
+    return neighbour_inds
+end
+
+
+function get_neighbour_inds(ic, gmtry, it)
+    nx = gmtry["dim"]["nx"]
+    ny = gmtry["dim"]["ny"]
+    ix, iy = ctoxy(ic, nx=nx)
+    neighbour_inds = []
+    # println(ix, ", ", iy)
+    for neighbour in ["left", "right", "top", "bottom"]
+        nix = gmtry["data"][neighbour*"ix"][it, iy, ix] + 2
+        niy = gmtry["data"][neighbour*"iy"][it, iy, ix] + 2
+        # println(neighbour, ": ", nix, ", ", niy)
+        if 1 ≤ nix ≤ nx && 1 ≤ niy ≤ ny
+            append!(neighbour_inds, xytoc(nix, niy; nx=nx))
+        end
+    end
+    return neighbour_inds
+end
+
+
+function attach_neightbours(cells, edges, gmtry, it)
+    for (ic, cell) in enumerate(cells)
+        for neighbour_ind in get_neighbour_inds(ic, gmtry, it)
+            for boundary in cell.boundary
+                for neighbour_boundary in cells[neighbour_ind].boundary
+                    if boundary.index == neighbour_boundary.index && neighbour_ind ∉ boundary.neighbours
+                        append!(boundary.neighbours, neighbour_ind)
+                    end
+                end
+            end
+        end
+    end
+    for (ic, cell) in enumerate(cells)
+        for edge_ind in [bnd.index for bnd in cell.boundary]
+            neighbour_edge_inds = [bnd.index for bnd in cell.boundary]
+            for neighbour_ind in get_neighbour_inds(ic, gmtry, it)
+                union!(neighbour_edge_inds, [bnd.index for bnd in cells[neighbour_ind].boundary])
+            end
+            setdiff!(neighbour_edge_inds, edge_ind)
+            for neighbour_edge_ind in neighbour_edge_inds
+                for edge_bnd in edges[edge_ind].boundary
+                    for neighbour_edge_bnd in edges[neighbour_edge_ind].boundary
+                        if edge_bnd.index == neighbour_edge_bnd.index && neighbour_edge_ind ∉ edge_bnd.neighbours
+                            append!(edge_bnd.neighbours, neighbour_edge_ind)
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
 
@@ -476,21 +802,92 @@ function get_grid_subset_with_index(grid_ggd, grid_subset_index)
 end
 
 
+function get_subset_boundary_inds(space::OMAS.edge_profiles__grid_ggd___space, subset::OMAS.edge_profiles__grid_ggd___grid_subset)
+    nD = subset.element[1].object[1].dimension
+    if nD > 0
+        nD_objects = space.objects_per_dimension[nD + 1].object
+        elements = [nD_objects[ele.object[1].index] for ele in subset.element]
+        boundary_inds = Int[]
+        for ele in elements
+            symdiff!(boundary_inds, [bnd.index for bnd in ele.boundary])
+
+        end
+        return boundary_inds
+    end
+    return []
+end
+
+
+function get_subset_boundary(space::OMAS.edge_profiles__grid_ggd___space, subset::OMAS.edge_profiles__grid_ggd___grid_subset)
+    ret_subset = OMAS.edge_profiles__grid_ggd___grid_subset()
+    boundary_inds = get_subset_boundary_inds(space, subset)
+    bnd_dim = subset.element[1].object[1].dimension - 1
+    space_number = subset.element[1].object[1].space
+    add_subset_element!(ret_subset, space_number, bnd_dim, boundary_inds)
+    return ret_subset.element
+end
+
+
+function get_subset_space(space::OMAS.edge_profiles__grid_ggd___space,
+                          elements::Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element})
+    nD = elements[1].object[1].dimension
+    nD_objects = space.objects_per_dimension[nD+1].object
+    return [nD_objects[ele.object[1].index] for ele in elements]
+end
 
 """
-    solps2imas(b2gmtry, b2output, gsdesc)
+    subset_do(set_operator, itrs::Vararg{Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element}};
+              space::OMAS.edge_profiles__grid_ggd___space=OMAS.edge_profiles__grid_ggd___space(),
+              use_nodes=false)
+
+Function to perform any set operation (intersect, union, setdiff etc.) on subset.element to
+generate a list of elements to go to subset object. If use_nodes is true, the set operation will be
+applied on the set of nodes from subset.element, space argument is required for this.
+Note: that the arguments are subset.element (not the subset itself). Similarly, the return object is a
+list of OMAS.edge_profiles__grid_ggd___grid_subset___element.
+"""
+function subset_do(set_operator, itrs::Vararg{Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element}};
+                   space::OMAS.edge_profiles__grid_ggd___space=OMAS.edge_profiles__grid_ggd___space(),
+                   use_nodes=false)
+    if use_nodes
+        ele_inds = set_operator([union([obj.nodes for obj in get_subset_space(space, set_elements)]...) for set_elements in itrs]...)
+        dim = 0
+    else
+        ele_inds = set_operator([[ele.object[1].index for ele in set_elements] for set_elements in itrs]...)
+        dim = itrs[1][1].object[1].dimension
+    end
+    ret_subset = OMAS.edge_profiles__grid_ggd___grid_subset()
+    space_number = itrs[1][1].object[1].space
+    add_subset_element!(ret_subset, space_number, dim, ele_inds)
+    return ret_subset.element
+end
+
+
+"""
+    solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
 
 Main function of the module. Takes in a geometry file and a
 output file (either b2time or b2fstate) and a grid_ggd
 description in the form of a Dict or filename to equivalent
 YAML file. Returns data in OMAS.dd datastructure.
 """
-function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
+function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
     # Initialize an empty OMAS data structre
-    ids = OMAS_dd()
+    ids = OMAS.dd()
 
     # Setup the grid first
     gmtry = read_b2_output(b2gmtry)
+
+    jxi = jxa = nothing
+    if !isnothing(b2mn)
+        mn = read_b2mn_output(b2mn)
+        if "b2mwti_jxa" ∈ keys(mn)
+            jxa = Int(mn["b2mwti_jxa"])
+        end
+        if "b2mwti_jxi" ∈ keys(mn)
+            jxi = Int(mn["b2mwti_jxa"])
+        end
+    end
 
     nx = gmtry["dim"]["nx"]
     ny = gmtry["dim"]["ny"]
@@ -527,6 +924,8 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
 
             subset_nodes = get_grid_subset_with_index(grid_ggd, 1)  # nodes have index 1
             subset_faces = get_grid_subset_with_index(grid_ggd, 2)  # faces (edges with elongation in third dimension) have index 2
+            subset_xedges = get_grid_subset_with_index(grid_ggd, 3)  # faces (edges with elongation in third dimension) have index 2
+            subset_yedges = get_grid_subset_with_index(grid_ggd, 4)  # faces (edges with elongation in third dimension) have index 2
             subset_cells = get_grid_subset_with_index(grid_ggd, 5)  # cells (cell in 2D grid, volume with elongation) have index 5
             if cuts_found
                 subset_core = get_grid_subset_with_index(grid_ggd, 22)  # core cells have index 22
@@ -534,25 +933,55 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                 subset_odr = get_grid_subset_with_index(grid_ggd, 24)   # odr cells have index 24
                 subset_idr = get_grid_subset_with_index(grid_ggd, 25)   # idr cells have index 25
                 subset_xp = get_grid_subset_with_index(grid_ggd, 6)     # x_points have index 6
+                subset_corecut = get_grid_subset_with_index(grid_ggd, 7)     # core_cut have index 7
+                subset_pfrcut = get_grid_subset_with_index(grid_ggd, 8)      # pfr_cut have index 8
+                subset_othroat = get_grid_subset_with_index(grid_ggd, 9)     # outer_throat index 9
+                subset_ithroat = get_grid_subset_with_index(grid_ggd, 10)    # inner_throat index 10
+                if !isnothing(jxa)
+                    subset_omp = get_grid_subset_with_index(grid_ggd, 11)     # outer midplane 11
+                    subset_ompsep = get_grid_subset_with_index(grid_ggd, 101) # outer midplane node at separatix 101
+                end
+                if !isnothing(jxi)
+                    subset_imp = get_grid_subset_with_index(grid_ggd, 12)     # inner midplane 12
+                    subset_impsep = get_grid_subset_with_index(grid_ggd, 102) # inner midplane node at separatix 102
+                end
+                subset_corebnd = get_grid_subset_with_index(grid_ggd, 15)    # core inner boundary index 15
+                subset_separatix = get_grid_subset_with_index(grid_ggd, 16)  # separatix index 16
+                subset_otsep = get_grid_subset_with_index(grid_ggd, 103)     # outer target separatix meeting point 103
+                subset_itsep = get_grid_subset_with_index(grid_ggd, 104)     # inner target separatix meeting point 104
             end
+            
+            subset_otarget = get_grid_subset_with_index(grid_ggd, 13)     # outer_target index 13
+            subset_itarget = get_grid_subset_with_index(grid_ggd, 14)     # inner_target index 14
 
             # Resizing objects to hold cell geometry data
             # Should be fewer than this many points, but this way we won't under-fill
-            resize!(o0.object, ncell * 4)  # Points
-            resize!(o1.object, ncell * 4)  # Faces / edges
-            resize!(o2.object, ncell)  # Cells (2D)
+            nodes = resize!(o0.object, ncell * 4)  # Points
+            edges = resize!(o1.object, ncell * 4)  # Faces / edges
+            cells = resize!(o2.object, ncell)  # Cells (2D)
             resize!(o3.object, ncell)  # Volumes
 
-            # Initialize geometry for 0D objects
+            # Initialize geometry for 0D objects(nodes), nodes for 1D objects(edges)
             for i = 1:(ncell * 4)
-                o0.object[i].geometry = [0.0, 0.0]
+                nodes[i].geometry = [0.0, 0.0]
+                edges[i].nodes = [0, 0]
+                resize!(edges[i].boundary, 2)
+                for bnd in edges[i].boundary
+                    bnd.neighbours = Int64[]
+                end
             end
-            # Initialize nodes for cells
+            # Initialize nodes and boundaries for cells
             for i = 1:(ncell)
-                o2.object[i].nodes = [0, 0, 0, 0]
+                cells[i].nodes = [0, 0, 0, 0]
+                resize!(cells[i].boundary, 4)
+                for bnd in cells[i].boundary
+                    bnd.neighbours = Int64[]
+                end
             end
 
             j = 1
+            edge_ind = 1
+            # Setting up space with nodes, edges and cells
             for iy = 1:ny
                 for ix = 1:nx
                     ic::Int = (iy - 1) * nx + ix
@@ -565,26 +994,90 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                         # through the run cases.
                         i_existing = search_points(ids, crx[1, icorner, iy, ix], cry[1, icorner, iy, ix])[1]
                         if i_existing == 0
-                            o0.object[j].geometry = [crx[1, icorner, iy, ix], cry[1, icorner, iy, ix]]
-                            o2.object[ic].nodes[icorner] = j
+                            nodes[j].geometry = [crx[1, icorner, iy, ix], cry[1, icorner, iy, ix]]
+                            cells[ic].nodes[icorner] = j
                             add_subset_element!(subset_nodes, sn, 0, j)
-                            if cuts_found && xpoints_nodes[it][1] == o0.object[j].geometry
+                            if cuts_found && xpoints_nodes[it][1] == nodes[j].geometry
                                 add_subset_element!(subset_xp, sn, 0, j)
                             end
                             j += 1
                         else
-                            o2.object[ic].nodes[icorner] = i_existing[1]
+                            cells[ic].nodes[icorner] = i_existing[1]
                         end
                     end
-                    add_subset_element!(subset_cells, sn, 2, ic, ix, iy)
+                    # Adding edges (faced with toroidal elongation) to grid_ggd[grid_number].space[space_number].objects_per_dimension[1].object[:].nodes[1:2]
+                    # Adding same edges as boundary to  grid_ggd[grid_number].space[space_number].objects_per_dimension[2].object[:].boundary[1:4]
+                    for (boundary_ind, edge_pair) in chosen_edge_order
+                        edge_nodes = [cells[ic].nodes[icorner] for icorner in edge_pair]
+                        existing_edge_ind = search_edges(edges, edge_nodes)
+                        if existing_edge_ind == 0
+                            edges[edge_ind].nodes = edge_nodes
+                            for (ii, edge_bnd) in enumerate(edges[edge_ind].boundary)
+                                edge_bnd.index = edge_nodes[ii]
+                            end
+                            edges[edge_ind].measure = distance_between_nodes(nodes, edge_nodes)
+                            cells[ic].boundary[boundary_ind].index = edge_ind
+                            add_subset_element!(subset_faces, sn, 1, edge_ind)
+                            add_subset_element!(subset_xedges, sn, 1, edge_ind, is_x_aligned; boundary_ind)
+                            add_subset_element!(subset_yedges, sn, 1, edge_ind, is_y_aligned; boundary_ind)
+                            edge_ind += 1
+                        else
+                            cells[ic].boundary[boundary_ind].index = existing_edge_ind
+                        end
+                    end
+                    add_subset_element!(subset_cells, sn, 2, ic)
                     if cuts_found
                         # add_subset_element!(subset, sn, dim, index, ix, iy, in_subset=(x...) -> true; kwargs...)
-                        add_subset_element!(subset_core, sn, 2, ic, ix, iy, in_core; cuts...)
-                        add_subset_element!(subset_sol, sn, 2, ic, ix, iy, in_sol; cuts...)
-                        add_subset_element!(subset_idr, sn, 2, ic, ix, iy, in_idr; cuts...)
-                        add_subset_element!(subset_odr, sn, 2, ic, ix, iy, in_odr; cuts...)
+                        add_subset_element!(subset_core, sn, 2, ic, in_core; ix, iy, cuts...)
+                        add_subset_element!(subset_sol, sn, 2, ic, in_sol; iy, cuts...)
+                        add_subset_element!(subset_idr, sn, 2, ic, in_idr; ix, iy, cuts...)
+                        add_subset_element!(subset_odr, sn, 2, ic, in_odr; ix, iy, cuts...)
                     end
                 end
+            end
+            if cuts_found
+                # Add boundaries
+                attach_neightbours(cells, edges, gmtry, it)
+                # Adding edges to subsets
+                for iy = 1:ny
+                    for ix = 1:nx
+                        for boundary_ind = 1:4
+                            edge_ind = cells[xytoc(ix, iy; nx)].boundary[boundary_ind].index
+                            add_subset_element!(subset_corecut, sn, 1, edge_ind, is_core_cut; ix, iy, cells, nx, boundary_ind, cuts...)
+                            # add_subset_element!(subset_pfrcut, sn, 1, edge_ind, is_pfr_cut; ix, iy, cells, nx, boundary_ind, cuts...)
+                            if !isnothing(jxa)
+                                add_subset_element!(subset_omp, sn, 1, edge_ind, is_outer_midplane; ix, iy, jxa, boundary_ind, cuts...)
+                            end
+                            if !isnothing(jxi)
+                                add_subset_element!(subset_imp, sn, 1, edge_ind, is_inner_midplane; ix, iy, jxi, boundary_ind, cuts...)
+                            end
+                            add_subset_element!(subset_othroat, sn, 1, edge_ind, is_outer_throat; ix, iy, boundary_ind, cuts...)
+                            add_subset_element!(subset_ithroat, sn, 1, edge_ind, is_inner_throat; ix, iy, boundary_ind, cuts...)
+                            add_subset_element!(subset_otarget, sn, 1, edge_ind, is_outer_target; ix, nx, boundary_ind)
+                            add_subset_element!(subset_itarget, sn, 1, edge_ind, is_inner_target; ix, boundary_ind)
+                            # add_subset_element!(subset_corebnd, sn, 1, edge_ind, is_core_boundary; ix, iy, boundary_ind, cuts...)
+                            # add_subset_element!(subset_separatix, sn, 1, edge_ind, is_separatix; iy, boundary_ind, cuts...)
+                        end
+                    end
+                end
+                core_boundary_elements = get_subset_boundary(space, subset_core)
+                sol_boundary_elements = get_subset_boundary(space, subset_sol)
+                idr_boundary_elements = get_subset_boundary(space, subset_idr)
+                odr_boundary_elements = get_subset_boundary(space, subset_odr)
+                subset_pfrcut.element = subset_do(intersect, idr_boundary_elements, odr_boundary_elements)
+                subset_corebnd.element = subset_do(setdiff, core_boundary_elements, sol_boundary_elements)
+                subset_separatix.element = subset_do(intersect, sol_boundary_elements,
+                                                                   subset_do(union, core_boundary_elements,
+                                                                                       odr_boundary_elements,
+                                                                                       idr_boundary_elements))
+                if !isnothing(jxa)
+                    subset_ompsep.element = subset_do(intersect, subset_separatix.element, subset_omp.element; space, use_nodes=true)
+                end
+                if !isnothing(jxi)
+                    subset_impsep.element = subset_do(intersect, subset_separatix.element, subset_imp.element; space, use_nodes=true)
+                end
+                subset_otsep.element = subset_do(intersect, subset_separatix.element, subset_otarget.element; space, use_nodes=true)
+                subset_itsep.element = subset_do(intersect, subset_separatix.element, subset_itarget.element; space, use_nodes=true)
             end
         end  # End of setting up space
     end
