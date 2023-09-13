@@ -118,6 +118,21 @@ function read_b2time_output(filename)
 end
 
 
+function read_b2mn_output(filename)
+    lines = open(filename) do f
+        readlines(f)
+    end
+    contents = Dict()
+    for line in lines
+        if startswith(line, "'")
+            splits = split(line, "'"; keepempty=false)
+            contents[splits[1]] = parse(Float64, splits[end])
+        end
+    end
+    return contents
+end
+
+
 function read_b2_output(filename)
     # x = readdlm(filename, ' ', Float64, '\n', header=true)  # Doesn't handle the text lines at the start of each array
 
@@ -386,6 +401,28 @@ Returns true if boundary_ind of a cell at ix, iy is on outer throat
 """
 function is_inner_throat(; ix, iy, boundary_ind, topcut, leftcut, kwargs...)
     return topcut + 1 < iy && ix == leftcut + 2 && boundary_ind == 2
+end
+
+
+"""
+    is_outer_midplane(; ix, jxa, boundary_ind)
+
+Returns true if boundary_ind of a cell at ix, iy is on outer midplane
+"""
+function is_outer_midplane(; ix, iy, jxa, boundary_ind, topcut, kwargs...)
+    # Note: USING CONVENTION to mark bottom edge of the midplane cell as midplane
+    return ix == jxa && iy > topcut + 1 && boundary_ind == 1
+end
+
+
+"""
+    is_inner_midplane(; ix, jxa, boundary_ind)
+
+Returns true if boundary_ind of a cell at ix, iy is on outer midplane
+"""
+function is_inner_midplane(; ix, iy, jxi, boundary_ind, topcut, kwargs...)
+    # Note: USING CONVENTION to mark bottom edge of the midplane cell as midplane
+    return ix == jxi && iy > topcut + 1 && boundary_ind == 1
 end
 
 
@@ -834,12 +871,23 @@ output file (either b2time or b2fstate) and a grid_ggd
 description in the form of a Dict or filename to equivalent
 YAML file. Returns data in OMAS.dd datastructure.
 """
-function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
+function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
     # Initialize an empty OMAS data structre
     ids = OMAS.dd()
 
     # Setup the grid first
     gmtry = read_b2_output(b2gmtry)
+
+    jxi = jxa = nothing
+    if !isnothing(b2mn)
+        mn = read_b2mn_output(b2mn)
+        if "b2mwti_jxa" ∈ keys(mn)
+            jxa = Int(mn["b2mwti_jxa"])
+        end
+        if "b2mwti_jxi" ∈ keys(mn)
+            jxi = Int(mn["b2mwti_jxa"])
+        end
+    end
 
     nx = gmtry["dim"]["nx"]
     ny = gmtry["dim"]["ny"]
@@ -889,11 +937,20 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                 subset_pfrcut = get_grid_subset_with_index(grid_ggd, 8)      # pfr_cut have index 8
                 subset_othroat = get_grid_subset_with_index(grid_ggd, 9)     # outer_throat index 9
                 subset_ithroat = get_grid_subset_with_index(grid_ggd, 10)    # inner_throat index 10
+                if !isnothing(jxa)
+                    subset_omp = get_grid_subset_with_index(grid_ggd, 11)     # outer midplane 11
+                    subset_ompsep = get_grid_subset_with_index(grid_ggd, 101) # outer midplane node at separatix 101
+                end
+                if !isnothing(jxi)
+                    subset_imp = get_grid_subset_with_index(grid_ggd, 12)     # inner midplane 12
+                    subset_impsep = get_grid_subset_with_index(grid_ggd, 102) # inner midplane node at separatix 102
+                end
                 subset_corebnd = get_grid_subset_with_index(grid_ggd, 15)    # core inner boundary index 15
                 subset_separatix = get_grid_subset_with_index(grid_ggd, 16)  # separatix index 16
                 subset_otsep = get_grid_subset_with_index(grid_ggd, 103)     # outer target separatix meeting point 103
                 subset_itsep = get_grid_subset_with_index(grid_ggd, 104)     # inner target separatix meeting point 104
             end
+            
             subset_otarget = get_grid_subset_with_index(grid_ggd, 13)     # outer_target index 13
             subset_itarget = get_grid_subset_with_index(grid_ggd, 14)     # inner_target index 14
 
@@ -988,6 +1045,12 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                             edge_ind = cells[xytoc(ix, iy; nx)].boundary[boundary_ind].index
                             add_subset_element!(subset_corecut, sn, 1, edge_ind, is_core_cut; ix, iy, cells, nx, boundary_ind, cuts...)
                             # add_subset_element!(subset_pfrcut, sn, 1, edge_ind, is_pfr_cut; ix, iy, cells, nx, boundary_ind, cuts...)
+                            if !isnothing(jxa)
+                                add_subset_element!(subset_omp, sn, 1, edge_ind, is_outer_midplane; ix, iy, jxa, boundary_ind, cuts...)
+                            end
+                            if !isnothing(jxi)
+                                add_subset_element!(subset_imp, sn, 1, edge_ind, is_inner_midplane; ix, iy, jxi, boundary_ind, cuts...)
+                            end
                             add_subset_element!(subset_othroat, sn, 1, edge_ind, is_outer_throat; ix, iy, boundary_ind, cuts...)
                             add_subset_element!(subset_ithroat, sn, 1, edge_ind, is_inner_throat; ix, iy, boundary_ind, cuts...)
                             add_subset_element!(subset_otarget, sn, 1, edge_ind, is_outer_target; ix, nx, boundary_ind)
@@ -1007,6 +1070,12 @@ function solps2imas(b2gmtry, b2output, gsdesc; load_bb=false)
                                                                    subset_do(union, core_boundary_elements,
                                                                                        odr_boundary_elements,
                                                                                        idr_boundary_elements))
+                if !isnothing(jxa)
+                    subset_ompsep.element = subset_do(intersect, subset_separatix.element, subset_omp.element; space, use_nodes=true)
+                end
+                if !isnothing(jxi)
+                    subset_impsep.element = subset_do(intersect, subset_separatix.element, subset_imp.element; space, use_nodes=true)
+                end
                 subset_otsep.element = subset_do(intersect, subset_separatix.element, subset_otarget.element; space, use_nodes=true)
                 subset_itsep.element = subset_do(intersect, subset_separatix.element, subset_itarget.element; space, use_nodes=true)
             end
