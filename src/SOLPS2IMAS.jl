@@ -411,7 +411,7 @@ Returns true if boundary_ind of a cell at ix, iy is on outer midplane
 """
 function is_outer_midplane(; ix, iy, jxa, boundary_ind, topcut, kwargs...)
     # Note: USING CONVENTION to mark bottom edge of the midplane cell as midplane
-    return ix == jxa && iy > topcut + 1 && boundary_ind == 1
+    return ix == jxa && boundary_ind == 1
 end
 
 
@@ -422,7 +422,7 @@ Returns true if boundary_ind of a cell at ix, iy is on outer midplane
 """
 function is_inner_midplane(; ix, iy, jxi, boundary_ind, topcut, kwargs...)
     # Note: USING CONVENTION to mark bottom edge of the midplane cell as midplane
-    return ix == jxi && iy > topcut + 1 && boundary_ind == 1
+    return ix == jxi && boundary_ind == 1
 end
 
 
