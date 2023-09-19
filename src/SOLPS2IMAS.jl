@@ -400,7 +400,7 @@ end
 Returns true if boundary_ind of a cell at ix, iy is on outer throat
 """
 function is_inner_throat(; ix, iy, boundary_ind, topcut, leftcut, kwargs...)
-    return topcut + 1 < iy && ix == leftcut + 2 && boundary_ind == 2
+    return topcut + 1 < iy && ix == leftcut + 2 && boundary_ind == 4
 end
 
 
