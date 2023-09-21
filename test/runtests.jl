@@ -99,7 +99,7 @@ function test_solps2imas()
     ix = 5
     @assert(
         b2t["data"]["ne2d"][3, iy, ix] ==
-        dd.edge_profiles.ggd[3].electrons.density[5].values[(iy-1)*nx+ix]
+        dd.edge_profiles.ggd[3].electrons.density[1].values[(iy-1)*nx+ix]
     )
     # Checking if subsets obtained from set operations are same
     # as using a brute force definition which is too dependent

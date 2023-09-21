@@ -756,38 +756,6 @@ dict2prop!(obj, dict) =
     end
 
 """
-    path_to_obj(obj, path)
-
-Using path which is a collection of strings and integers,
-return a field of structure obj, using strings as names
-of fields and integers as index of an array of structure.
-Example:
-path_to_obj(obj, ["abc", 3, "cde", "fgh", 5, "ijk"])
-returns
-obj.abc[3].cde.fgh[5].ijk
-Note: If integer is -1, the array of field is resized to
-increase by 1 in length and last element is returned.
-"""
-function path_to_obj(obj, path)
-    for ele ∈ path
-        if typeof(ele) == String
-            obj = getfield(obj, Symbol(ele))
-        elseif typeof(ele) == Int
-            if ele == -1
-                resize!(obj, length(obj) + 1)
-                ele = length(obj)
-            elseif length(obj) < ele
-                resize!(obj, ele)
-            end
-            obj = obj[ele]
-        end
-    end
-    return obj
-end
-
-isint(x) = typeof(x) == Int
-
-"""
     val_obj(var, ggd, grid_ggd_index)
 
 Given SOLPS variable name (var), return the field to write values on from
@@ -798,14 +766,40 @@ val_obj(ggd, var, grid_ggd_index) =
     if var ∉ keys(solps_var_to_imas)
         return nothing
     else
-        path = solps_var_to_imas[var]
-        gsi_ind = findlast(isint, path)
-        path_to_prop = path[1:gsi_ind]
-        prop_to_obj = path[gsi_ind+1:end]
-        prop = path_to_obj(ggd, path_to_prop)
-        prop.grid_index = grid_ggd_index
-        prop.grid_subset_index = gsi_ind
-        return path_to_obj(prop, prop_to_obj)
+        path, gsi = solps_var_to_imas[var]
+        prop = ggd
+        path_fields = split(path, ".")
+        for pf ∈ path_fields
+            if occursin("[", pf)
+                prop = getfield(prop, Symbol(pf[1:findfirst('[', pf)-1]))
+                ind_str = pf[findfirst('[', pf)+1:findfirst(']', pf)-1]
+                if ind_str == ":"
+                    resize!(prop, length(prop) + 1)
+                    prop = prop[end]
+                else
+                    ind = parse(Int64, ind_str)
+                    if length(prop) < ind
+                        resize!(prop, ind)
+                    end
+                    prop = prop[ind]
+                end
+            else
+                prop = getfield(prop, Symbol(pf))
+            end
+            if :grid_subset_index ∈ fieldnames(typeof(prop))
+                prop.grid_subset_index = gsi
+                prop.grid_index = grid_ggd_index
+            end
+        end
+        return prop
+
+        # gsi_ind = findlast(isint, path)
+        # path_to_prop = path[1:gsi_ind]
+        # prop_to_obj = path[gsi_ind+1:end]
+        # prop = path_to_obj(ggd, path_to_prop)
+        # prop.grid_index = grid_ggd_index
+        # prop.grid_subset_index = gsi_ind
+        # return path_to_obj(prop, prop_to_obj)
     end
 
 """
