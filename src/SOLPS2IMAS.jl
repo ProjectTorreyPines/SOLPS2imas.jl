@@ -191,10 +191,8 @@ function read_b2_output(filename)
     elseif "nx,ny,ns" ∈ keys(contents)
         return extract_state_quantities(contents)
     else
-        throw(
-            DomainError(keys(contents),
-                "nx,ny (b2fgmtry) or nx,ny,ns (b2fstate) must be present in b2 output file.",
-            ),
+        error(
+            "nx,ny (b2fgmtry) or nx,ny,ns (b2fstate) must be present in b2 output file",
         )
     end
 end
@@ -486,12 +484,20 @@ function is_separatix(; iy, boundary_ind, topcut, kwargs...)
 end
 
 """
-    add_subset_element!(subset, sn, dim, index::Int, in_subset=(x...)->true; kwargs...)
+    add_subset_element!(
+    subset,
+    sn,
+    dim,
+    index::Int,
+    in_subset=(x...) -> true;
+    kwargs...,
 
-Adds the geometric element in subset object (assumed to be resized already) at element dd index dd_ind,
-with space number sn, dimension dim, index. To determine,
-if the element should be added or not, a function in_subset can be provided that gets the arguments
-(kwargs...). These functions will be in_core, in_sol etc as difined above.
+)
+
+Adds the geometric element in subset object (assumed to be resized already) at element
+dd index dd_ind, with space number sn, dimension dim, index. To determine,
+if the element should be added or not, a function in_subset can be provided that gets
+the arguments (kwargs...). These functions will be in_core, in_sol etc as difined above.
 """
 function add_subset_element!(
     subset,
@@ -582,15 +588,10 @@ function get_xpoint_nodes(gmtry)
     return xpoint_nodes
 end
 
-function search_points(ids, r, z)
+function search_points(nodes, r, z)
     n = length(r)
     indices = zeros(Int, n)
-    grid_number = 1
-    space_number = 1
-    subset_idx_node = 1
     # If an index remains at 0, it means the point in question was not found
-    nodes =
-        ids.edge_profiles.grid_ggd[grid_number].space[space_number].objects_per_dimension[subset_idx_node].object
     for j ∈ 1:n
         for i ∈ eachindex(nodes)
             rn = nodes[i].geometry[1]
@@ -894,7 +895,10 @@ function subset_do(set_operator,
     if use_nodes
         ele_inds = set_operator(
             [
-                union([obj.nodes for obj ∈ get_subset_space(space, set_elements)]...) for set_elements ∈ itrs
+                union([
+                        obj.nodes for obj ∈ get_subset_space(space, set_elements)
+                    ]...
+                ) for set_elements ∈ itrs
             ]...,
         )
         dim = 0
@@ -1040,7 +1044,7 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                         # Note that time index has been fixed to 1 here. Only handling
                         # fixed grid geometry through the run cases.
                         i_existing = search_points(
-                            ids,
+                            nodes,
                             crx[1, icorner, iy, ix],
                             cry[1, icorner, iy, ix],
                         )[1]
