@@ -129,6 +129,8 @@ function read_b2mn_output(filename)
     contents = Dict()
     for line ∈ lines
         if startswith(line, "'")
+            # Ignore comments and remove spaces
+            line = strip(split(line, "#")[1], [' '])
             splits = split(line, "'"; keepempty=false)
             contents[splits[1]] = parse(Float64, splits[end])
         end

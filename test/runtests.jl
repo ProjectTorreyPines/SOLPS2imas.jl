@@ -86,7 +86,7 @@ end
 
 function test_solps2imas()
     b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
-    b2output = "$(@__DIR__)/../samples/b2time_red.nc"
+    b2output = "$(@__DIR__)/../samples/b2time.nc"
     gsdesc = "$(@__DIR__)/../samples/gridspacedesc.yml"
     b2mn = "$(@__DIR__)/../samples/b2mn.dat"
     b2t = SOLPS2IMAS.read_b2_output(b2output)
