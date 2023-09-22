@@ -1,10 +1,10 @@
-md5: 029436c56d60a4477f3b36d4883b882d
+md5: bf96c041599ce04799130f3e0dd34d3f
 frozen: true
 deps:
 - path: ITER_Lore_2296_00000/baserun/b2fgmtry
   repo:
-    url: git@github.com:ProjectTorreyPines/TestSamples.git
-    rev_lock: f905bd19e48bd54bc53416de9bbdaadda6654b9a
+    url: git@github.com:ProjectTorreyPines/SOLPSTestSamples.git
+    rev_lock: 35fd24298a4118eec6491dcd17d4e0ec97823e83
 outs:
 - md5: 6589953daeef49b21744d159af970cbb
   size: 2908856
