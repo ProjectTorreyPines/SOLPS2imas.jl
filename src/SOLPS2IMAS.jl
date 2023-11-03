@@ -840,8 +840,8 @@ function get_subset_boundary_inds(
     subset::OMAS.edge_profiles__grid_ggd___grid_subset,
 )
     nD = subset.element[1].object[1].dimension
-    if nD > 0
-        nD_objects = space.objects_per_dimension[nD+1].object
+    if nD > 1  # Only 2D (edges) and 3D (cells) subsets have boundaries
+        nD_objects = space.objects_per_dimension[nD].object
         elements = [nD_objects[ele.object[1].index] for ele ∈ subset.element]
         boundary_inds = Int[]
         for ele ∈ elements
@@ -849,7 +849,7 @@ function get_subset_boundary_inds(
         end
         return boundary_inds
     end
-    return []
+    return [] # 1D (nodes) subsets have no boundary
 end
 
 function get_subset_boundary(
@@ -867,7 +867,7 @@ end
 function get_subset_space(space::OMAS.edge_profiles__grid_ggd___space,
     elements::Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element})
     nD = elements[1].object[1].dimension
-    nD_objects = space.objects_per_dimension[nD+1].object
+    nD_objects = space.objects_per_dimension[nD].object
     return [nD_objects[ele.object[1].index] for ele ∈ elements]
 end
 
@@ -897,7 +897,7 @@ function subset_do(set_operator,
                 ) for set_elements ∈ itrs
             ]...,
         )
-        dim = 0
+        dim = 1
     else
         ele_inds = set_operator(
             [[ele.object[1].index for ele ∈ set_elements] for set_elements ∈ itrs]...,
@@ -962,7 +962,7 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
             space = grid_ggd.space[sn]
             # Assuming following to be standard for now.
             # We can add this info through YAML as well
-            resize!(space.objects_per_dimension, 4)
+            resize!(space.objects_per_dimension, 3)
             o1 = space.objects_per_dimension[1]  # 1D objects
             o2 = space.objects_per_dimension[2]  # 2D objects
             o3 = space.objects_per_dimension[3]  # 3D objects
