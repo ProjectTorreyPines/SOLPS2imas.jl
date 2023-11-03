@@ -806,7 +806,7 @@ val_obj(ggd, var, grid_ggd_index) =
     find_subset_index()
 
 Finds the julia index of the subset with ggd_index matching the request.
-Example: GGD defines subset index 5 as being all 2D cells. But what is the Julia
+Example: GGD defines subset index 5 as being all 3D cells. But what is the Julia
 index of that subset within the IMAS DD representation? Yes, we're trying to find
 the index of the index, but they're different meanings of index.
 We'll call them dd_index (the place in the DD) and ggd_index (the type of subset).
@@ -963,10 +963,9 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
             # Assuming following to be standard for now.
             # We can add this info through YAML as well
             resize!(space.objects_per_dimension, 4)
-            o0 = space.objects_per_dimension[1]  # 0D objects
-            o1 = space.objects_per_dimension[2]  # 1D objects
-            o2 = space.objects_per_dimension[3]  # 2D objects
-            o3 = space.objects_per_dimension[4]  # 3D objects
+            o1 = space.objects_per_dimension[1]  # 1D objects
+            o2 = space.objects_per_dimension[2]  # 2D objects
+            o3 = space.objects_per_dimension[3]  # 3D objects
 
             subset_nodes = get_grid_subset_with_index(grid_ggd, 1)
             subset_faces = get_grid_subset_with_index(grid_ggd, 2)
@@ -1002,12 +1001,11 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
 
             # Resizing objects to hold cell geometry data
             # Should be fewer than this many points, but this way we won't under-fill
-            nodes = resize!(o0.object, ncell * 4)  # Points
-            edges = resize!(o1.object, ncell * 4)  # Faces / edges
-            cells = resize!(o2.object, ncell)  # Cells (2D)
-            resize!(o3.object, ncell)  # Volumes
+            nodes = resize!(o1.object, ncell * 4)  # Nodes (1D)
+            edges = resize!(o2.object, ncell * 4)  # Edges (2D)
+            cells = resize!(o3.object, ncell)  # Cells (3D)
 
-            # Initialize geometry for 0D objects(nodes), nodes for 1D objects(edges)
+            # Initialize geometry for 1D objects(nodes), nodes for 2D objects(edges)
             for i ∈ 1:(ncell*4)
                 nodes[i].geometry = [0.0, 0.0]
                 edges[i].nodes = [0, 0]
