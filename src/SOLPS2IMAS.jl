@@ -806,7 +806,7 @@ val_obj(ggd, var, grid_ggd_index) =
     find_subset_index()
 
 Finds the julia index of the subset with ggd_index matching the request.
-Example: GGD defines subset index 5 as being all 2D cells. But what is the Julia
+Example: GGD defines subset index 5 as being all 3D cells. But what is the Julia
 index of that subset within the IMAS DD representation? Yes, we're trying to find
 the index of the index, but they're different meanings of index.
 We'll call them dd_index (the place in the DD) and ggd_index (the type of subset).
@@ -840,8 +840,8 @@ function get_subset_boundary_inds(
     subset::OMAS.edge_profiles__grid_ggd___grid_subset,
 )
     nD = subset.element[1].object[1].dimension
-    if nD > 0
-        nD_objects = space.objects_per_dimension[nD+1].object
+    if nD > 1  # Only 2D (edges) and 3D (cells) subsets have boundaries
+        nD_objects = space.objects_per_dimension[nD].object
         elements = [nD_objects[ele.object[1].index] for ele ∈ subset.element]
         boundary_inds = Int[]
         for ele ∈ elements
@@ -849,7 +849,7 @@ function get_subset_boundary_inds(
         end
         return boundary_inds
     end
-    return []
+    return [] # 1D (nodes) subsets have no boundary
 end
 
 function get_subset_boundary(
@@ -867,7 +867,7 @@ end
 function get_subset_space(space::OMAS.edge_profiles__grid_ggd___space,
     elements::Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element})
     nD = elements[1].object[1].dimension
-    nD_objects = space.objects_per_dimension[nD+1].object
+    nD_objects = space.objects_per_dimension[nD].object
     return [nD_objects[ele.object[1].index] for ele ∈ elements]
 end
 
@@ -897,7 +897,7 @@ function subset_do(set_operator,
                 ) for set_elements ∈ itrs
             ]...,
         )
-        dim = 0
+        dim = 1
     else
         ele_inds = set_operator(
             [[ele.object[1].index for ele ∈ set_elements] for set_elements ∈ itrs]...,
@@ -962,11 +962,10 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
             space = grid_ggd.space[sn]
             # Assuming following to be standard for now.
             # We can add this info through YAML as well
-            resize!(space.objects_per_dimension, 4)
-            o0 = space.objects_per_dimension[1]  # 0D objects
-            o1 = space.objects_per_dimension[2]  # 1D objects
-            o2 = space.objects_per_dimension[3]  # 2D objects
-            o3 = space.objects_per_dimension[4]  # 3D objects
+            resize!(space.objects_per_dimension, 3)
+            o1 = space.objects_per_dimension[1]  # 1D objects
+            o2 = space.objects_per_dimension[2]  # 2D objects
+            o3 = space.objects_per_dimension[3]  # 3D objects
 
             subset_nodes = get_grid_subset_with_index(grid_ggd, 1)
             subset_faces = get_grid_subset_with_index(grid_ggd, 2)
@@ -1002,12 +1001,11 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
 
             # Resizing objects to hold cell geometry data
             # Should be fewer than this many points, but this way we won't under-fill
-            nodes = resize!(o0.object, ncell * 4)  # Points
-            edges = resize!(o1.object, ncell * 4)  # Faces / edges
-            cells = resize!(o2.object, ncell)  # Cells (2D)
-            resize!(o3.object, ncell)  # Volumes
+            nodes = resize!(o1.object, ncell * 4)  # Nodes (1D)
+            edges = resize!(o2.object, ncell * 4)  # Edges (2D)
+            cells = resize!(o3.object, ncell)  # Cells (3D)
 
-            # Initialize geometry for 0D objects(nodes), nodes for 1D objects(edges)
+            # Initialize geometry for 1D objects(nodes), nodes for 2D objects(edges)
             for i ∈ 1:(ncell*4)
                 nodes[i].geometry = [0.0, 0.0]
                 edges[i].nodes = [0, 0]
@@ -1048,9 +1046,9 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                             nodes[j].geometry =
                                 [crx[1, icorner, iy, ix], cry[1, icorner, iy, ix]]
                             cells[ic].nodes[icorner] = j
-                            add_subset_element!(subset_nodes, sn, 0, j)
+                            add_subset_element!(subset_nodes, sn, 1, j)
                             if cuts_found && xpoints_nodes[it][1] == nodes[j].geometry
-                                add_subset_element!(subset_xp, sn, 0, j)
+                                add_subset_element!(subset_xp, sn, 1, j)
                             end
                             j += 1
                         else
@@ -1070,11 +1068,11 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                             edges[edge_ind].measure =
                                 distance_between_nodes(nodes, edge_nodes)
                             cells[ic].boundary[boundary_ind].index = edge_ind
-                            add_subset_element!(subset_faces, sn, 1, edge_ind)
+                            add_subset_element!(subset_faces, sn, 2, edge_ind)
                             add_subset_element!(
                                 subset_xedges,
                                 sn,
-                                1,
+                                2,
                                 edge_ind,
                                 is_x_aligned;
                                 boundary_ind,
@@ -1082,7 +1080,7 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                             add_subset_element!(
                                 subset_yedges,
                                 sn,
-                                1,
+                                2,
                                 edge_ind,
                                 is_y_aligned;
                                 boundary_ind,
@@ -1092,23 +1090,23 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                             cells[ic].boundary[boundary_ind].index = existing_edge_ind
                         end
                     end
-                    add_subset_element!(subset_cells, sn, 2, ic)
+                    add_subset_element!(subset_cells, sn, 3, ic)
                     if cuts_found
                         add_subset_element!(
                             subset_core,
                             sn,
-                            2,
+                            3,
                             ic,
                             in_core;
                             ix,
                             iy,
                             cuts...,
                         )
-                        add_subset_element!(subset_sol, sn, 2, ic, in_sol; iy, cuts...)
+                        add_subset_element!(subset_sol, sn, 3, ic, in_sol; iy, cuts...)
                         add_subset_element!(
                             subset_idr,
                             sn,
-                            2,
+                            3,
                             ic,
                             in_idr;
                             ix,
@@ -1118,7 +1116,7 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                         add_subset_element!(
                             subset_odr,
                             sn,
-                            2,
+                            3,
                             ic,
                             in_odr;
                             ix,
@@ -1140,7 +1138,7 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                             add_subset_element!(
                                 subset_corecut,
                                 sn,
-                                1,
+                                2,
                                 edge_ind,
                                 is_core_cut;
                                 ix,
@@ -1154,7 +1152,7 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                                 add_subset_element!(
                                     subset_omp,
                                     sn,
-                                    1,
+                                    2,
                                     edge_ind,
                                     is_outer_midplane;
                                     ix,
@@ -1168,7 +1166,7 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                                 add_subset_element!(
                                     subset_imp,
                                     sn,
-                                    1,
+                                    2,
                                     edge_ind,
                                     is_inner_midplane;
                                     ix,
@@ -1181,7 +1179,7 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                             add_subset_element!(
                                 subset_othroat,
                                 sn,
-                                1,
+                                2,
                                 edge_ind,
                                 is_outer_throat;
                                 ix,
@@ -1192,7 +1190,7 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                             add_subset_element!(
                                 subset_ithroat,
                                 sn,
-                                1,
+                                2,
                                 edge_ind,
                                 is_inner_throat;
                                 ix,
@@ -1203,7 +1201,7 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                             add_subset_element!(
                                 subset_otarget,
                                 sn,
-                                1,
+                                2,
                                 edge_ind,
                                 is_outer_target;
                                 ix,
@@ -1213,7 +1211,7 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
                             add_subset_element!(
                                 subset_itarget,
                                 sn,
-                                1,
+                                2,
                                 edge_ind,
                                 is_inner_target;
                                 ix,
