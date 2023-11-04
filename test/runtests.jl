@@ -1,6 +1,7 @@
 using SOLPS2IMAS: SOLPS2IMAS
 using Test
 using YAML: load_file as YAML_load_file
+using OMAS: json2imas, imas2json
 
 function test_generate_test_data()
     cr, cz = generate_test_data()
@@ -156,4 +157,23 @@ end
     @test SOLPS2IMAS.find_subset_index(gsdesc, 1) == 1
     @test SOLPS2IMAS.find_subset_index(gsdesc, 5) == 5
     @test SOLPS2IMAS.find_subset_index(gsdesc, 101) == 27
+end
+
+@testset "json2imas" begin
+    b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
+    b2output = "$(@__DIR__)/../samples/b2time.nc"
+    gsdesc = "$(@__DIR__)/../samples/gridspacedesc.yml"
+    b2mn = "$(@__DIR__)/../samples/b2mn.dat"
+    b2t = SOLPS2IMAS.read_b2_output(b2output)
+    ids = SOLPS2IMAS.solps2imas(b2gmtry, b2output, gsdesc, b2mn)
+    test_dir = mktempdir()
+    imas2json(ids, joinpath(test_dir, "test_out.json"))
+    ids1 = json2imas(joinpath(test_dir, "test_out.json"))
+    @test keys(ids1) == keys(ids)
+    # But now test electron.density values
+    @test ids1.edge_profiles.ggd[1].electrons.density[1].values ==
+          ids.edge_profiles.ggd[1].electrons.density[1].values
+    # In fact the new file does not have any values
+    @test length(ids1.edge_profiles.ggd[1].electrons.density[1].values) ==
+          length(ids.edge_profiles.ggd[1].electrons.density[1].values)
 end
