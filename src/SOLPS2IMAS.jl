@@ -289,6 +289,22 @@ function ctoxy(ic; nx)
 end
 
 """
+    data_xytoc(data; nx)
+
+Flattens 2d data given on cell indices ix, iy into 1d data on linear index ic. ic is
+calculated using xytoc function. Data is assumed to have dimensions (ny, nx)
+"""
+function data_xytoc(data; nx)
+    flat_data = Array{eltype(data)}(undef, length(data))
+    for ix ∈ axes(data, 2)
+        for iy ∈ axes(data, 1)
+            flat_data[xytoc(ix, iy; nx=nx)] = data[iy, ix]
+        end
+    end
+    return flat_data
+end
+
+"""
 in_core(; ix, iy, topcut, bottomcut, leftcut, rightcut)
 
 Returns true if cell indexed ix, iy lie inside the core
@@ -758,49 +774,42 @@ dict2prop!(obj, dict) =
 """
     val_obj(var, ggd, grid_ggd_index)
 
-Given SOLPS variable name (var), return the field to write values on from
-ggd object.
+Given SOLPS variable name (var), returns pair of parent object and property name
+to write value on. If var is not found in solps_var_to_imas, returns nothing, nothing.
 """
 solps_var_to_imas = YAML_load_file("$(@__DIR__)/solps_var_to_imas.yml")
-val_obj(ggd, var, grid_ggd_index) =
+function val_obj(ggd, var, grid_ggd_index)
     if var ∉ keys(solps_var_to_imas)
-        return nothing
+        return nothing, nothing
     else
         path, gsi = solps_var_to_imas[var]
-        prop = ggd
+        parent = ggd
         path_fields = split(path, ".")
-        for pf ∈ path_fields
+        for pf ∈ path_fields[1:end-1]
             if occursin("[", pf)
-                prop = getfield(prop, Symbol(pf[1:findfirst('[', pf)-1]))
+                parent = getfield(parent, Symbol(pf[1:findfirst('[', pf)-1]))
                 ind_str = pf[findfirst('[', pf)+1:findfirst(']', pf)-1]
                 if ind_str == ":"
-                    resize!(prop, length(prop) + 1)
-                    prop = prop[end]
+                    resize!(parent, length(parent) + 1)
+                    parent = parent[end]
                 else
                     ind = parse(Int64, ind_str)
-                    if length(prop) < ind
-                        resize!(prop, ind)
+                    if length(parent) < ind
+                        resize!(parent, ind)
                     end
-                    prop = prop[ind]
+                    parent = parent[ind]
                 end
             else
-                prop = getfield(prop, Symbol(pf))
+                parent = getfield(parent, Symbol(pf))
             end
-            if :grid_subset_index ∈ fieldnames(typeof(prop))
-                prop.grid_subset_index = gsi
-                prop.grid_index = grid_ggd_index
+            if :grid_subset_index ∈ fieldnames(typeof(parent))
+                parent.grid_subset_index = gsi
+                parent.grid_index = grid_ggd_index
             end
         end
-        return prop
-
-        # gsi_ind = findlast(isint, path)
-        # path_to_prop = path[1:gsi_ind]
-        # prop_to_obj = path[gsi_ind+1:end]
-        # prop = path_to_obj(ggd, path_to_prop)
-        # prop.grid_index = grid_ggd_index
-        # prop.grid_subset_index = gsi_ind
-        # return path_to_obj(prop, prop_to_obj)
+        return parent, Symbol(path_fields[end])
     end
+end
 
 """
     find_subset_index()
@@ -1276,15 +1285,9 @@ function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
         ggd = ids.edge_profiles.ggd[it]
         ggd.time = Float64.(b2["data"]["timesa"][it])
         for (key, data) ∈ b2["data"]
-            obj = val_obj(ggd, key, gsdesc["identifier"]["index"])
-            if !isnothing(obj)
-                resize!(obj, ncell)
-                for iy ∈ 1:ny
-                    for ix ∈ 1:nx
-                        ic::Int = (iy - 1) * nx + ix
-                        obj[ic] = data[it, iy, ix]
-                    end
-                end
+            parent, prop = val_obj(ggd, key, gsdesc["identifier"]["index"])
+            if !isnothing(parent)
+                setproperty!(parent, prop, data_xytoc(data[it, :, :]; nx=nx))
             end
         end
         # Done with filling data for this time step
