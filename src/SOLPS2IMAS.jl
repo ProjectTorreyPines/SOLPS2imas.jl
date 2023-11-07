@@ -4,6 +4,8 @@ using Revise
 using OMAS: OMAS
 using NCDatasets: Dataset, dimnames
 using YAML: load_file as YAML_load_file
+import GGDUtils: add_subset_element!, get_grid_subset_with_index, get_subset_boundary,
+    get_subset_space, subset_do
 export try_omas
 export generate_test_data
 export read_b2_output
@@ -809,114 +811,6 @@ function val_obj(ggd, var, grid_ggd_index)
         end
         return parent, Symbol(path_fields[end])
     end
-end
-
-"""
-    find_subset_index()
-
-Finds the julia index of the subset with ggd_index matching the request.
-Example: GGD defines subset index 5 as being all 3D cells. But what is the Julia
-index of that subset within the IMAS DD representation? Yes, we're trying to find
-the index of the index, but they're different meanings of index.
-We'll call them dd_index (the place in the DD) and ggd_index (the type of subset).
-"""
-function find_subset_index(gsdesc, ggd_index)
-    subsets = length(gsdesc["grid_subset"])
-    for dd_index ∈ 1:subsets
-        if gsdesc["grid_subset"][dd_index]["identifier"]["index"] == ggd_index
-            return dd_index
-        end
-    end
-    return 0  # Indicates failure
-end
-
-"""
-    get_grid_subset_with_index(grid_subset_index)
-
-Returns the grid_subset in a grid_ggd with the matching grid_subset_index
-"""
-function get_grid_subset_with_index(grid_ggd, grid_subset_index)
-    for subset ∈ grid_ggd.grid_subset
-        if subset.identifier.index == grid_subset_index
-            return subset
-        end
-    end
-    return 0  # Indicates failure
-end
-
-function get_subset_boundary_inds(
-    space::OMAS.edge_profiles__grid_ggd___space,
-    subset::OMAS.edge_profiles__grid_ggd___grid_subset,
-)
-    nD = subset.element[1].object[1].dimension
-    if nD > 1  # Only 2D (edges) and 3D (cells) subsets have boundaries
-        nD_objects = space.objects_per_dimension[nD].object
-        elements = [nD_objects[ele.object[1].index] for ele ∈ subset.element]
-        boundary_inds = Int[]
-        for ele ∈ elements
-            symdiff!(boundary_inds, [bnd.index for bnd ∈ ele.boundary])
-        end
-        return boundary_inds
-    end
-    return [] # 1D (nodes) subsets have no boundary
-end
-
-function get_subset_boundary(
-    space::OMAS.edge_profiles__grid_ggd___space,
-    subset::OMAS.edge_profiles__grid_ggd___grid_subset,
-)
-    ret_subset = OMAS.edge_profiles__grid_ggd___grid_subset()
-    boundary_inds = get_subset_boundary_inds(space, subset)
-    bnd_dim = subset.element[1].object[1].dimension - 1
-    space_number = subset.element[1].object[1].space
-    add_subset_element!(ret_subset, space_number, bnd_dim, boundary_inds)
-    return ret_subset.element
-end
-
-function get_subset_space(space::OMAS.edge_profiles__grid_ggd___space,
-    elements::Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element})
-    nD = elements[1].object[1].dimension
-    nD_objects = space.objects_per_dimension[nD].object
-    return [nD_objects[ele.object[1].index] for ele ∈ elements]
-end
-
-"""
-    subset_do(set_operator,
-    itrs::Vararg{Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element}};
-    space::OMAS.edge_profiles__grid_ggd___space=OMAS.edge_profiles__grid_ggd___space(),
-    use_nodes=false)
-
-Function to perform any set operation (intersect, union, setdiff etc.) on
-subset.element to generate a list of elements to go to subset object. If use_nodes is
-true, the set operation will be applied on the set of nodes from subset.element, space
-argument is required for this.
-Note: that the arguments are subset.element (not the subset itself). Similarly, the
-return object is a list of OMAS.edge_profiles__grid_ggd___grid_subset___element.
-"""
-function subset_do(set_operator,
-    itrs::Vararg{Vector{OMAS.edge_profiles__grid_ggd___grid_subset___element}};
-    space::OMAS.edge_profiles__grid_ggd___space=OMAS.edge_profiles__grid_ggd___space(),
-    use_nodes=false)
-    if use_nodes
-        ele_inds = set_operator(
-            [
-                union([
-                        obj.nodes for obj ∈ get_subset_space(space, set_elements)
-                    ]...
-                ) for set_elements ∈ itrs
-            ]...,
-        )
-        dim = 1
-    else
-        ele_inds = set_operator(
-            [[ele.object[1].index for ele ∈ set_elements] for set_elements ∈ itrs]...,
-        )
-        dim = itrs[1][1].object[1].dimension
-    end
-    ret_subset = OMAS.edge_profiles__grid_ggd___grid_subset()
-    space_number = itrs[1][1].object[1].space
-    add_subset_element!(ret_subset, space_number, dim, ele_inds)
-    return ret_subset.element
 end
 
 """
