@@ -16,7 +16,10 @@ function parse_commandline()
         Dict(:help => "Test read_b2_output()",
             :action => :store_true),
         ["--solps2imas"],
-        Dict(:help => "Test solps2imas",
+        Dict(:help => "Test solps2imas (overall workflow)",
+            :action => :store_true),
+        ["--parser"],
+        Dict(:help => "Stress test file parsing (other than b2 output files)",
             :action => :store_true),
     )
     args = ArgParse.parse_args(s)
@@ -75,6 +78,26 @@ if args["ind"]
     end
 end
 
+if args["parser"]
+    @testset "Test file parsing in depth" begin
+        # b2mn.dat
+        b2mn_samples = "$(@__DIR__)/../samples/" .* [
+            "b2mn.dat",
+            "b2mn.dat.sample_50dn",
+            "b2mn.dat.sample_50xd",
+            "b2mn.dat.sample_si1",
+            "b2mn.dat.sample_si2"
+        ]
+        always_required_keys = ["b2mndr_ntim", "b2mndr_dtim"]
+        for b2mn_sample in b2mn_samples
+            b2mn_data = SOLPS2IMAS.read_b2mn_output(b2mn_sample)
+            for ark in always_required_keys
+                @test ark in keys(b2mn_data)
+            end
+        end
+    end
+end
+
 if args["b2"]
     @testset "Test read_b2_output" begin
         contents = SOLPS2IMAS.read_b2_output("$(@__DIR__)/../samples/b2fstate")
@@ -118,7 +141,7 @@ if args["b2"]
 end
 
 if args["solps2imas"]
-    @testset "Test solps2imas()" begin
+    @testset "Test solps2imas() (overall workflow)" begin
         b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
         b2output = "$(@__DIR__)/../samples/b2time.nc"
         gsdesc = "$(@__DIR__)/../samples/gridspacedesc.yml"
