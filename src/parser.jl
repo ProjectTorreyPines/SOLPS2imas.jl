@@ -42,8 +42,21 @@ function read_b2mn_output(filename)
         if startswith(line, "'")
             # Ignore comments and remove spaces
             line = strip(split(line, "#")[1], [' '])
-            splits = split(line, "'"; keepempty=false)
-            contents[splits[1]] = parse(Float64, splits[end])
+            key = strip(split(line)[1], ['\''])
+            value = split(line, '\'', keepempty=false)[2:end]
+            try
+                value = [
+                    '.' in v ? parse(Float64, v) : parse(Int, v)
+                    for v in value if length(strip(v, ' ')) > 0
+                ]
+            catch
+                # Adapted from the method for parsing b2mn or b2ag in omfit_solps.py
+                # I don't know when or why this is needed, but that parser has been
+                # tested aggressively and works well, so I'm copying it.
+                value = split(line, '\'')[4]
+            end
+            value = length(value) == 1 ? value[1] : value
+            contents[key] = value
         end
     end
     return contents
