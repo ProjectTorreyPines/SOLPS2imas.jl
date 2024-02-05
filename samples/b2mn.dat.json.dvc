@@ -1,0 +1,13 @@
+md5: 3e568b48ec1dfc20771e4c4f57ec330e
+frozen: true
+deps:
+- path: 
+    ITER_Lore_2296_00000/run_time_dep_EIRENE_jdl_to_ss_cont_sine2_2d_output/b2mn.dat.json
+  repo:
+    url: git@github.com:ProjectTorreyPines/SOLPSTestSamples.git
+    rev_lock: c3e4d582b7fe9f6df358f143ec4bd48d9c068348
+outs:
+- md5: 343c6ae9486b65052fc37cf31ea1dd9c
+  size: 3577
+  hash: md5
+  path: b2mn.dat.json
