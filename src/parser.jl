@@ -38,25 +38,40 @@ function read_b2mn_output(filename)
         return readlines(f)
     end
     contents = Dict()
+    found_endphy = false
     for line ∈ lines
-        if startswith(line, "'")
-            # Ignore comments and remove spaces
-            line = strip(split(line, "#")[1], [' '])
-            key = strip(split(line)[1], ['\''])
-            value = split(line, '\'', keepempty=false)[2:end]
-            try
-                value = [
-                    '.' in v ? parse(Float64, v) : parse(Int, v)
-                    for v in value if length(strip(v, ' ')) > 0
-                ]
-            catch
-                # Adapted from the method for parsing b2mn or b2ag in omfit_solps.py
-                # I don't know when or why this is needed, but that parser has been
-                # tested aggressively and works well, so I'm copying it.
-                value = split(line, '\'')[4]
+        # Remove all whitespace characters (taken from Base.isspace definition)
+        line = strip(line, ['\t', '\n', '\v', '\f', '\r', ' ', '\u85', '\ua0'])
+        if !found_endphy
+            # Ignore all lines until *endphy
+            if startswith(line, "*endphy")
+                found_endphy = true
             end
-            value = length(value) == 1 ? value[1] : value
-            contents[key] = value
+            continue
+        else
+            if startswith(line, "'") || startswith(line, "\"")
+                # Ignore comments that can start with #, !, or *
+                line = split(line, "#"; keepempty=false)[1]
+                line = split(line, "!"; keepempty=false)[1]
+                line = split(line, "*"; keepempty=false)[1]
+                # Replace all spaces with nothing, double quotes with single quotes
+                line = replace(line, Base.isspace => "", "\"" => "'")
+                # Now split with single quotes and discard empty strings
+                name_value = split(line, "'"; keepempty=false)
+                if length(name_value) == 0 # Case where key is commented inside quotes
+                    continue
+                end
+                # Get key and value in lowercase
+                key = lowercase(name_value[1])
+                value = lowercase(name_value[2])
+                # Parse value as int or float
+                if '.' in value || 'e' in value
+                    value = parse(Float64, value)
+                else
+                    value = parse(Int, value)
+                end
+                contents[key] = value
+            end
         end
     end
     return contents

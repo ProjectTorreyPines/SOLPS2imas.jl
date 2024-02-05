@@ -2,6 +2,7 @@ using SOLPS2IMAS: SOLPS2IMAS
 using Test
 using YAML: load_file as YAML_load_file
 using ArgParse: ArgParse
+using OMAS: OMAS
 
 allowed_rtol = 1e-4
 
@@ -80,20 +81,18 @@ end
 
 if args["parser"]
     @testset "Test file parsing in depth" begin
-        # b2mn.dat
         b2mn_samples = "$(@__DIR__)/../samples/" .* [
             "b2mn.dat",
-            "b2mn.dat.sample_50dn",
-            "b2mn.dat.sample_50xd",
-            "b2mn.dat.sample_si1",
-            "b2mn.dat.sample_si2"
+            "test_b2mn.dat",
         ]
         always_required_keys = ["b2mndr_ntim", "b2mndr_dtim"]
-        for b2mn_sample in b2mn_samples
+        for b2mn_sample ∈ b2mn_samples
             b2mn_data = SOLPS2IMAS.read_b2mn_output(b2mn_sample)
-            for ark in always_required_keys
+            for ark ∈ always_required_keys
                 @test ark in keys(b2mn_data)
             end
+            b2mn_json = OMAS.JSON.parsefile(b2mn_sample * ".json")
+            @test b2mn_json == b2mn_data
         end
     end
 end
