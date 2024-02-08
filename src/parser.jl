@@ -34,6 +34,12 @@ function read_b2time_output(filename)
 end
 
 function read_b2mn_output(filename)
+    # Get list of integer fields
+    d = readdlm("$(@__DIR__)/b2mn_int_fields.txt")
+    int_fields = d[:, 1]
+    # Get a dictionary of default defined fields
+    def_int_fields =
+        Dict(d[ii, 1] => d[ii, 2] for ii ∈ range(1, size(d)[1]) if isa(d[ii, 2], Int))
     lines = open(filename) do f
         return readlines(f)
     end
@@ -64,14 +70,21 @@ function read_b2mn_output(filename)
                 # Get key and value in lowercase
                 key = lowercase(name_value[1])
                 value = lowercase(name_value[2])
-                # Parse value as int or float
-                if '.' in value || 'e' in value
+                try
                     value = parse(Float64, value)
-                else
-                    value = parse(Int, value)
+                catch
+                    value = parse(String, value)
+                end
+                if key in int_fields
+                    value = Int(value)
                 end
                 contents[key] = value
             end
+        end
+    end
+    for key ∈ keys(def_int_fields)
+        if key ∉ keys(contents)
+            contents[key] = def_int_fields[key]
         end
     end
     return contents
