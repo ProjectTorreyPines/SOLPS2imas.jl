@@ -34,16 +34,57 @@ function read_b2time_output(filename)
 end
 
 function read_b2mn_output(filename)
+    # Get list of integer fields
+    d = readdlm("$(@__DIR__)/b2mn_int_fields.txt")
+    int_fields = d[:, 1]
+    # Get a dictionary of default defined fields
+    def_int_fields =
+        Dict(d[ii, 1] => d[ii, 2] for ii ∈ range(1, size(d)[1]) if isa(d[ii, 2], Int))
     lines = open(filename) do f
         return readlines(f)
     end
     contents = Dict()
+    found_endphy = false
     for line ∈ lines
-        if startswith(line, "'")
-            # Ignore comments and remove spaces
-            line = strip(split(line, "#")[1], [' '])
-            splits = split(line, "'"; keepempty=false)
-            contents[splits[1]] = parse(Float64, splits[end])
+        # Remove all whitespace characters (taken from Base.isspace definition)
+        line = strip(line, ['\t', '\n', '\v', '\f', '\r', ' ', '\u85', '\ua0'])
+        if !found_endphy
+            # Ignore all lines until *endphy
+            if startswith(line, "*endphy")
+                found_endphy = true
+            end
+            continue
+        else
+            if startswith(line, "'") || startswith(line, "\"")
+                # Ignore comments that can start with #, !, or *
+                line = split(line, "#"; keepempty=false)[1]
+                line = split(line, "!"; keepempty=false)[1]
+                line = split(line, "*"; keepempty=false)[1]
+                # Replace all spaces with nothing, double quotes with single quotes
+                line = replace(line, Base.isspace => "", "\"" => "'")
+                # Now split with single quotes and discard empty strings
+                name_value = split(line, "'"; keepempty=false)
+                if length(name_value) == 0 # Case where key is commented inside quotes
+                    continue
+                end
+                # Get key and value in lowercase
+                key = lowercase(name_value[1])
+                value = lowercase(name_value[2])
+                try
+                    value = parse(Float64, value)
+                catch
+                    value = parse(String, value)
+                end
+                if key in int_fields
+                    value = Int(value)
+                end
+                contents[key] = value
+            end
+        end
+    end
+    for key ∈ keys(def_int_fields)
+        if key ∉ keys(contents)
+            contents[key] = def_int_fields[key]
         end
     end
     return contents
