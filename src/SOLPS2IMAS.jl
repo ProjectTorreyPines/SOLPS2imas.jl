@@ -17,6 +17,8 @@ include("subset_id.jl")
 
 include("solps_mesh_tools.jl")
 
+default_gsdesc = "$(@__DIR__)/default_grid_space_description.yml"
+
 """
     dict2prop!(obj, dict)
 
@@ -86,7 +88,13 @@ output file (either b2time or b2fstate) and a grid_ggd
 description in the form of a Dict or filename to equivalent
 YAML file. Returns data in OMAS.dd datastructure.
 """
-function solps2imas(b2gmtry, b2output, gsdesc, b2mn=nothing; load_bb=false)
+function solps2imas(
+    b2gmtry,
+    b2output;
+    gsdesc=default_gsdesc,
+    b2mn=nothing,
+    load_bb=false,
+)
     # Initialize an empty OMAS data structre
     ids = OMAS.dd()
 
