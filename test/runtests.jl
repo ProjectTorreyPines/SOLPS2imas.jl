@@ -143,12 +143,11 @@ if args["solps2imas"]
     @testset "Test solps2imas() (overall workflow)" begin
         b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
         b2output = "$(@__DIR__)/../samples/b2time.nc"
-        gsdesc = "$(@__DIR__)/../samples/gridspacedesc.yml"
         b2mn = "$(@__DIR__)/../samples/b2mn.dat"
         b2t = SOLPS2IMAS.read_b2_output(b2output)
         nx = b2t["dim"]["nx"]
         print("solps2imas() time: ")
-        @time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output, gsdesc, b2mn)
+        @time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn=b2mn)
         # Check time stamp 3 at iy=4, ix=5
         it = 3
         iy = 4
