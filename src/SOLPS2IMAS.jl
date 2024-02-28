@@ -105,10 +105,10 @@ function solps2imas(
     if !isnothing(b2mn)
         mn = read_b2mn_output(b2mn)
         if "b2mwti_jxa" ∈ keys(mn)
-            jxa = Int(mn["b2mwti_jxa"])
+            jxa = mn["b2mwti_jxa"]
         end
         if "b2mwti_jxi" ∈ keys(mn)
-            jxi = Int(mn["b2mwti_jxa"])
+            jxi = mn["b2mwti_jxi"]
         end
     end
 
