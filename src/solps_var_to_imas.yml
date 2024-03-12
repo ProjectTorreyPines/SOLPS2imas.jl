@@ -1,7 +1,7 @@
 # List of conversion from solps variable name to ggd object structure
 # Format:
 # <solps_var_name>: [path_to_value_object, grid_subset_index]
-# path_to_value_object is a string written in same format as OMAS schema table
+# path_to_value_object is a string written in same format as IMAS schema table
 # For choosing an instance of an object in array, use [] for giving index
 # For appending to the object array, use [:]
 # Example:

@@ -2,7 +2,7 @@ using SOLPS2IMAS: SOLPS2IMAS
 using Test
 using YAML: load_file as YAML_load_file
 using ArgParse: ArgParse
-using OMAS: OMAS
+using IMASDD: IMASDD
 
 allowed_rtol = 1e-4
 
@@ -91,7 +91,7 @@ if args["parser"]
             for ark ∈ always_required_keys
                 @test ark in keys(b2mn_data)
             end
-            b2mn_json = OMAS.JSON.parsefile(b2mn_sample * ".json")
+            b2mn_json = IMASDD.JSON.parsefile(b2mn_sample * ".json")
             @test b2mn_json == b2mn_data
         end
     end
