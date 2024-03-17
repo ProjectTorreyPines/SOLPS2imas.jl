@@ -673,6 +673,141 @@ function solps2imas(
         # Done with filling data for this time step
     end # End of it
 
+    if fort != ("", "", "")
+        grid_ggd = ids.edge_profiles.grid_ggd[1]
+        space = grid_ggd.space[1]
+        o1 = space.objects_per_dimension[1]  # 1D objects
+        o2 = space.objects_per_dimension[2]  # 2D objects
+        o3 = space.objects_per_dimension[3]  # 3D objects
+        nodes = o1.object  # Nodes (1D)
+        edges = o2.object  # Edges (2D)
+        cells = o3.object  # Cells (3D)
+        cur_no_subsets = length(grid_ggd.grid_subset)
+        # Add 9 more subsets
+        resize!(grid_ggd.grid_subset, cur_no_subsets + 9)
+        # Copy all B2.5 nodes, faces, edges, cells to grid_subset with negative indices
+        for (ii, gsi) ∈ enumerate([1, 2, 5])
+            grid_ggd.grid_subset[cur_no_subsets+ii] =
+                deepcopy(get_grid_subset_with_index(grid_ggd, gsi))
+            grid_ggd.grid_subset[cur_no_subsets+ii].identifier.index = -gsi
+            grid_ggd.grid_subset[cur_no_subsets+ii].identifier.name *= "_B2.5"
+        end
+        subset_nodes = get_grid_subset_with_index(grid_ggd, 1)
+        subset_faces = get_grid_subset_with_index(grid_ggd, 2)
+        subset_cells = get_grid_subset_with_index(grid_ggd, 5)
+        subset_b25nodes = grid_ggd.grid_subset[cur_no_subsets+1]
+        subset_b25faces = grid_ggd.grid_subset[cur_no_subsets+2]
+        subset_b25cells = grid_ggd.grid_subset[cur_no_subsets+3]
+        subset_trinodes = grid_ggd.grid_subset[cur_no_subsets+4]
+        subset_trifaces = grid_ggd.grid_subset[cur_no_subsets+5]
+        subset_tricells = grid_ggd.grid_subset[cur_no_subsets+6]
+        subset_comnodes = grid_ggd.grid_subset[cur_no_subsets+7]
+        subset_comfaces = grid_ggd.grid_subset[cur_no_subsets+8]
+        subset_comcells = grid_ggd.grid_subset[cur_no_subsets+9]
+        subset_trinodes.identifier.index = -101
+        subset_trinodes.identifier.name = "nodes_EIRENE"
+        subset_trinodes.identifier.description = "Triangular mesh nodes from EIRENE"
+        subset_trifaces.identifier.index = -102
+        subset_trifaces.identifier.name = "faces_EIRENE"
+        subset_trifaces.identifier.description = "Triangular mesh faces from EIRENE"
+        subset_tricells.identifier.index = -105
+        subset_tricells.identifier.name = "cells_EIRENE"
+        subset_tricells.identifier.description = "Triangular mesh cells from EIRENE"
+        subset_comnodes.identifier.index = -201
+        subset_comnodes.identifier.name = "nodes_EIRENE_B2.5"
+        subset_comnodes.identifier.description = "Triangular mesh nodes common between EIRENE and B2.5"
+        subset_comfaces.identifier.index = -202
+        subset_comfaces.identifier.name = "faces_EIRENE_B2.5"
+        subset_comfaces.identifier.description = "Triangular mesh faces common between EIRENE and B2.5"
+        subset_comcells.identifier.index = -205
+        subset_comcells.identifier.name = "cells_EIRENE_B2.5"
+        subset_comcells.identifier.description = "Triangular mesh cells overlapping between EIRENE and B2.5"
+
+        # Adding new node positions and cell corners data
+        f33 = readdlm(fort[1])
+        fnnodes = f33[1, 1]
+        fnodeXnodeY = vec(f33[2:end, :]') * 1e-2 # cm to m
+        fnodeX = fnodeXnodeY[1:fnnodes]
+        fnodeY = fnodeXnodeY[fnnodes+1:end]
+        fnode_inds = Array{Int64}(undef, fnnodes)
+        for fnind ∈ 1:fnnodes
+            i_existing = search_points(
+                nodes,
+                fnodeX[fnind],
+                fnodeY[fnind];
+                tol=fort_tol,
+            )[1]
+            if i_existing == 0
+                resize!(nodes, length(nodes) + 1)
+                this_node_ind = length(nodes)
+                nodes[this_node_ind].geometry = [fnodeX[fnind], fnodeY[fnind]]
+
+                add_subset_element!(subset_nodes, 1, 1, this_node_ind)
+            else
+                this_node_ind = i_existing[1]
+            end
+            fnode_inds[fnind] = this_node_ind
+            add_subset_element!(subset_trinodes, 1, 1, this_node_ind)
+        end
+        f34 = readdlm(fort[2])
+        fntria = f34[1, 1]
+        fntriIndNodes = f34[2:end, :]
+        fntri_inds = Array{Int64}(undef, fntria)
+        for fntri ∈ 1:fntria
+            resize!(cells, length(cells) + 1)
+            this_cell_ind = length(cells)
+            fntri_inds[fntri] = this_cell_ind
+            resize!(cells[this_cell_ind].nodes, 3)
+            cells[this_cell_ind].nodes = [
+                fnode_inds[fntriIndNodes[fntri, 2]],
+                fnode_inds[fntriIndNodes[fntri, 3]],
+                fnode_inds[fntriIndNodes[fntri, 4]],
+            ]
+            resize!(cells[this_cell_ind].boundary, 3)
+            for (bnd_ind, edge_pair) ∈ chosen_tri_edge_order
+                tri_edge_nodes =
+                    [cells[this_cell_ind].nodes[icorner] for icorner ∈ edge_pair]
+                existing_edge_ind = search_edges(edges, tri_edge_nodes)
+                if existing_edge_ind == 0
+                    resize!(edges, length(edges) + 1)
+                    this_edge_ind = length(edges)
+                    edges[this_edge_ind].nodes = tri_edge_nodes
+                    edges[this_edge_ind].measure =
+                        distance_between_nodes(nodes, tri_edge_nodes)
+                    add_subset_element!(subset_faces, 1, 2, this_edge_ind)
+                else
+                    this_edge_ind = existing_edge_ind
+                end
+                cells[this_cell_ind].boundary[bnd_ind].index = this_edge_ind
+                add_subset_element!(subset_trifaces, 1, 2, this_edge_ind)
+            end
+            add_subset_element!(subset_cells, 1, 3, this_cell_ind)
+            add_subset_element!(subset_tricells, 1, 3, this_cell_ind)
+        end
+        f35 = readdlm(fort[3])
+        f35 = f35[2:end, :]
+        for ii ∈ 1:fntria
+            this_cell_ind = fntri_inds[f35[ii, 1]]
+            this_cell = cells[this_cell_ind]
+            for (bnd_no, bnd) ∈ enumerate(this_cell.boundary)
+                neigh_col_ind = (bnd_no - 1) * 3 + 2
+                if f35[ii, neigh_col_ind] != 0
+                    bnd.neighbours = [fntri_inds[f35[ii, neigh_col_ind]]]
+                else
+                    bnd.neighbours = Int64[]
+                end
+            end
+            if f35[ii, 11] != -1 && f35[ii, 12] != -1
+                add_subset_element!(subset_comcells, 1, 3, this_cell_ind)
+            end
+        end
+
+        subset_comnodes.element =
+            subset_do(intersect, subset_b25nodes.element, subset_trinodes.element)
+        subset_comfaces.element =
+            subset_do(intersect, subset_b25faces.element, subset_trifaces.element)
+    end
+
     # Adding magnetic field data
     if "bb" ∈ keys(gmtry["data"]) && load_bb
         bb = gmtry["data"]["bb"]
