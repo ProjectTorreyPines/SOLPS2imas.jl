@@ -697,7 +697,6 @@ function solps2imas(
         subset_cells = get_grid_subset_with_index(grid_ggd, 5)
         subset_b25nodes = grid_ggd.grid_subset[cur_no_subsets+1]
         subset_b25faces = grid_ggd.grid_subset[cur_no_subsets+2]
-        subset_b25cells = grid_ggd.grid_subset[cur_no_subsets+3]
         subset_trinodes = grid_ggd.grid_subset[cur_no_subsets+4]
         subset_trifaces = grid_ggd.grid_subset[cur_no_subsets+5]
         subset_tricells = grid_ggd.grid_subset[cur_no_subsets+6]
@@ -772,6 +771,9 @@ function solps2imas(
                     resize!(edges, length(edges) + 1)
                     this_edge_ind = length(edges)
                     edges[this_edge_ind].nodes = tri_edge_nodes
+                    for (ii, edge_bnd) ∈ enumerate(edges[this_edge_ind].boundary)
+                        edge_bnd.index = tri_edge_nodes[ii]
+                    end
                     edges[this_edge_ind].measure =
                         distance_between_nodes(nodes, tri_edge_nodes)
                     add_subset_element!(subset_faces, 1, 2, this_edge_ind)
