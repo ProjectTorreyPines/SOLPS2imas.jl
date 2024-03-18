@@ -505,7 +505,7 @@ function solps2imas(
         cells = o3.object  # Cells (3D)
         cur_no_subsets = length(grid_ggd.grid_subset)
         # Add 9 more subsets
-        resize!(grid_ggd.grid_subset, cur_no_subsets + 9)
+        resize!(grid_ggd.grid_subset, cur_no_subsets + 12)
         # Copy all B2.5 nodes, faces, edges, cells to grid_subset with negative indices
         for (ii, gsi) ∈ enumerate([1, 2, 5])
             grid_ggd.grid_subset[cur_no_subsets+ii] =
@@ -518,12 +518,19 @@ function solps2imas(
         subset_cells = get_grid_subset_with_index(grid_ggd, 5)
         subset_b25nodes = grid_ggd.grid_subset[cur_no_subsets+1]
         subset_b25faces = grid_ggd.grid_subset[cur_no_subsets+2]
+        subset_b25cells = grid_ggd.grid_subset[cur_no_subsets+3]
         subset_trinodes = grid_ggd.grid_subset[cur_no_subsets+4]
         subset_trifaces = grid_ggd.grid_subset[cur_no_subsets+5]
         subset_tricells = grid_ggd.grid_subset[cur_no_subsets+6]
         subset_comnodes = grid_ggd.grid_subset[cur_no_subsets+7]
         subset_comfaces = grid_ggd.grid_subset[cur_no_subsets+8]
         subset_comcells = grid_ggd.grid_subset[cur_no_subsets+9]
+        subset_extnodes = grid_ggd.grid_subset[cur_no_subsets+10]
+        subset_extfaces = grid_ggd.grid_subset[cur_no_subsets+11]
+        subset_extcells = grid_ggd.grid_subset[cur_no_subsets+12]
+        subset_b25nodes.identifier.description = "All nodes from B2.5"
+        subset_b25faces.identifier.description = "All faces from B2.5"
+        subset_b25cells.identifier.description = "All cells from B2.5"
         subset_trinodes.identifier.index = -101
         subset_trinodes.identifier.name = "nodes_EIRENE"
         subset_trinodes.identifier.description = "Triangular mesh nodes from EIRENE"
@@ -542,6 +549,15 @@ function solps2imas(
         subset_comcells.identifier.index = -205
         subset_comcells.identifier.name = "cells_EIRENE_B2.5"
         subset_comcells.identifier.description = "Triangular mesh cells overlapping between EIRENE and B2.5"
+        subset_extnodes.identifier.index = -301
+        subset_extnodes.identifier.name = "nodes_EIRENE_Extension_Only"
+        subset_extnodes.identifier.description = "Triangular mesh nodes only in EIRENE extended mesh outside B2.5"
+        subset_extfaces.identifier.index = -302
+        subset_extfaces.identifier.name = "faces_EIRENE_Extension_Only"
+        subset_extfaces.identifier.description = "Triangular mesh faces only in EIRENE extended mesh outside B2.5"
+        subset_extcells.identifier.index = -305
+        subset_extcells.identifier.name = "cells_EIRENE_Extension_Only"
+        subset_extcells.identifier.description = "Triangular mesh cells only in EIRENE extended mesh outside B2.5"
 
         # Adding new node positions and cell corners data
         f33 = readdlm(fort[1])
@@ -622,6 +638,8 @@ function solps2imas(
             end
             if f35[ii, 11] != -1 && f35[ii, 12] != -1
                 add_subset_element!(subset_comcells, 1, 3, this_cell_ind)
+            else
+                add_subset_element!(subset_extcells, 1, 3, this_cell_ind)
             end
         end
 
@@ -629,6 +647,11 @@ function solps2imas(
             subset_do(intersect, subset_b25nodes.element, subset_trinodes.element)
         subset_comfaces.element =
             subset_do(intersect, subset_b25faces.element, subset_trifaces.element)
+
+        subset_extnodes.element =
+            subset_do(setdiff, subset_trinodes.element, subset_b25nodes.element)
+        subset_extfaces.element =
+            subset_do(setdiff, subset_trifaces.element, subset_b25faces.element)
     end
 
     # Adding magnetic field data
