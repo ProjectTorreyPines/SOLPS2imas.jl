@@ -91,9 +91,9 @@ chosen_edge_order = [(1, (1, 2)),
     (4, (3, 1))]
 
 # Following convention is used to index the edges of a triangular cell
-chosen_tri_edge_order = [(1, (2, 3)),
-    (2, (3, 1)),
-    (3, (1, 2))]
+chosen_tri_edge_order = [(1, (1, 2)),
+    (2, (2, 3)),
+    (3, (1, 3))]
 
 """
     solps2imas(
@@ -206,19 +206,21 @@ function solps2imas(
 
             # Resizing objects to hold cell geometry data
             # Should be fewer than this many points, but this way we won't under-fill
-            nodes = resize!(o1.object, ncell * 4)  # Nodes (1D)
-            edges = resize!(o2.object, ncell * 4)  # Edges (2D)
+            # nodes = resize!(o1.object, ncell * 4)  # Nodes (1D)
+            # edges = resize!(o2.object, ncell * 4)  # Edges (2D)
+            nodes = o1.object                  # Nodes (1D)
+            edges = o2.object                  # Edges (2D)
             cells = resize!(o3.object, ncell)  # Cells (3D)
 
             # Initialize geometry for 1D objects(nodes), nodes for 2D objects(edges)
-            for i ∈ 1:(ncell*4)
-                nodes[i].geometry = [0.0, 0.0]
-                edges[i].nodes = [0, 0]
-                resize!(edges[i].boundary, 2)
-                for bnd ∈ edges[i].boundary
-                    bnd.neighbours = Int64[]
-                end
-            end
+            # for i ∈ 1:(ncell*4)
+            #     nodes[i].geometry = [0.0, 0.0]
+            #     edges[i].nodes = [0, 0]
+            #     resize!(edges[i].boundary, 2)
+            #     for bnd ∈ edges[i].boundary
+            #         bnd.neighbours = Int64[]
+            #     end
+            # end
             # Initialize nodes and boundaries for cells
             for i ∈ 1:(ncell)
                 cells[i].nodes = [0, 0, 0, 0]
@@ -248,6 +250,7 @@ function solps2imas(
                             cry[1, icorner, iy, ix],
                         )[1]
                         if i_existing == 0
+                            resize!(nodes, j)
                             nodes[j].geometry =
                                 [crx[1, icorner, iy, ix], cry[1, icorner, iy, ix]]
                             cells[ic].nodes[icorner] = j
@@ -266,7 +269,9 @@ function solps2imas(
                         edge_nodes = [cells[ic].nodes[icorner] for icorner ∈ edge_pair]
                         existing_edge_ind = search_edges(edges, edge_nodes)
                         if existing_edge_ind == 0
+                            resize!(edges, edge_ind)
                             edges[edge_ind].nodes = edge_nodes
+                            resize!(edges[edge_ind].boundary, 2)
                             for (ii, edge_bnd) ∈ enumerate(edges[edge_ind].boundary)
                                 edge_bnd.index = edge_nodes[ii]
                             end
@@ -513,7 +518,6 @@ function solps2imas(
         subset_cells = get_grid_subset_with_index(grid_ggd, 5)
         subset_b25nodes = grid_ggd.grid_subset[cur_no_subsets+1]
         subset_b25faces = grid_ggd.grid_subset[cur_no_subsets+2]
-        subset_b25cells = grid_ggd.grid_subset[cur_no_subsets+3]
         subset_trinodes = grid_ggd.grid_subset[cur_no_subsets+4]
         subset_trifaces = grid_ggd.grid_subset[cur_no_subsets+5]
         subset_tricells = grid_ggd.grid_subset[cur_no_subsets+6]
@@ -588,6 +592,9 @@ function solps2imas(
                     resize!(edges, length(edges) + 1)
                     this_edge_ind = length(edges)
                     edges[this_edge_ind].nodes = tri_edge_nodes
+                    for (ii, edge_bnd) ∈ enumerate(edges[this_edge_ind].boundary)
+                        edge_bnd.index = tri_edge_nodes[ii]
+                    end
                     edges[this_edge_ind].measure =
                         distance_between_nodes(nodes, tri_edge_nodes)
                     add_subset_element!(subset_faces, 1, 2, this_edge_ind)
