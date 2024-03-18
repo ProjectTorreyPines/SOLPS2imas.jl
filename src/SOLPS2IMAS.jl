@@ -40,18 +40,34 @@ dict2prop!(obj, dict) =
         end
     end
 
+solps_var_to_imas = YAML_load_file("$(@__DIR__)/solps_var_to_imas.yml")
 """
-    val_obj(var, ggd, grid_ggd_index)
+    val_obj(
+    ggd::IMASDD.edge_profiles__ggd,
+    var::String,
+    grid_ggd_index::Int64;
+    gsi_ch::Dict{Int64, Int64}=Dict{Int64, Int64}(),
+
+)
 
 Given SOLPS variable name (var), returns pair of parent object and property name
 to write value on. If var is not found in solps_var_to_imas, returns nothing, nothing.
+Optionally, a mapping of possibly changes in grid_subset_index can be provided as
+a dictionary gsi_ch.
 """
-solps_var_to_imas = YAML_load_file("$(@__DIR__)/solps_var_to_imas.yml")
-function val_obj(ggd, var, grid_ggd_index)
+function val_obj(
+    ggd::IMASDD.edge_profiles__ggd,
+    var::String,
+    grid_ggd_index::Int64;
+    gsi_ch::Dict{Int64, Int64}=Dict{Int64, Int64}(),
+)
     if var ∉ keys(solps_var_to_imas)
         return nothing, nothing
     else
         path, gsi = solps_var_to_imas[var]
+        if gsi ∈ gsi_ch.keys
+            gsi = gsi_ch[gsi]
+        end
         parent = ggd
         path_fields = split(path, ".")
         for pf ∈ path_fields[1:end-1]
@@ -478,22 +494,7 @@ function solps2imas(
         end  # End of setting up space
     end
 
-    # Filling data in ggd now
-    b2 = read_b2_output(b2output)
-    # Add grid_ggd array equal to number of time steps
-    resize!(ids.edge_profiles.ggd, b2["dim"]["time"])
-    for it ∈ 1:b2["dim"]["time"]
-        ggd = ids.edge_profiles.ggd[it]
-        ggd.time = Float64.(b2["data"]["timesa"][it])
-        for (key, data) ∈ b2["data"]
-            parent, prop = val_obj(ggd, key, gsdesc["identifier"]["index"])
-            if !isnothing(parent)
-                setproperty!(parent, prop, data_xytoc(data[it, :, :]; nx=nx))
-            end
-        end
-        # Done with filling data for this time step
-    end # End of it
-
+    gsi_ch = Dict{Int64, Int64}()
     if fort != ("", "", "")
         grid_ggd = ids.edge_profiles.grid_ggd[1]
         space = grid_ggd.space[1]
@@ -512,6 +513,7 @@ function solps2imas(
                 deepcopy(get_grid_subset_with_index(grid_ggd, gsi))
             grid_ggd.grid_subset[cur_no_subsets+ii].identifier.index = -gsi
             grid_ggd.grid_subset[cur_no_subsets+ii].identifier.name *= "_B2.5"
+            gsi_ch[gsi] = -gsi
         end
         subset_nodes = get_grid_subset_with_index(grid_ggd, 1)
         subset_faces = get_grid_subset_with_index(grid_ggd, 2)
@@ -653,6 +655,23 @@ function solps2imas(
         subset_extfaces.element =
             subset_do(setdiff, subset_trifaces.element, subset_b25faces.element)
     end
+
+    # Filling data in ggd now
+    b2 = read_b2_output(b2output)
+    # Add grid_ggd array equal to number of time steps
+    resize!(ids.edge_profiles.ggd, b2["dim"]["time"])
+    for it ∈ 1:b2["dim"]["time"]
+        ggd = ids.edge_profiles.ggd[it]
+        ggd.time = Float64.(b2["data"]["timesa"][it])
+        grid_ggd_ind = gsdesc["identifier"]["index"]
+        for (key, data) ∈ b2["data"]
+            parent, prop = val_obj(ggd, key, grid_ggd_ind; gsi_ch=gsi_ch)
+            if !isnothing(parent)
+                setproperty!(parent, prop, data_xytoc(data[it, :, :]; nx=nx))
+            end
+        end
+        # Done with filling data for this time step
+    end # End of it
 
     # Adding magnetic field data
     if "bb" ∈ keys(gmtry["data"]) && load_bb
