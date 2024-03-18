@@ -60,7 +60,7 @@ search if an edge with nodes as edge_nodes already exists
 """
 function search_edges(edges, edge_nodes)
     for ii ∈ eachindex(edges)
-        if edge_nodes[2] == edges[ii].nodes[1] && edge_nodes[1] == edges[ii].nodes[2]
+        if edge_nodes[1] == edges[ii].nodes[1] && edge_nodes[2] == edges[ii].nodes[2]
             return ii
         elseif edge_nodes[2] == edges[ii].nodes[1] &&
                edge_nodes[1] == edges[ii].nodes[2]
