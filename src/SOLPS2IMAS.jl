@@ -1,7 +1,7 @@
 module SOLPS2IMAS
 
 using Revise
-using IMASDD: IMASDD
+import OMAS as IMASDD
 using NCDatasets: Dataset, dimnames
 using YAML: load_file as YAML_load_file
 using DelimitedFiles: readdlm

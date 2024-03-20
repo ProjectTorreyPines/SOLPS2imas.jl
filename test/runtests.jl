@@ -2,7 +2,7 @@ using SOLPS2IMAS: SOLPS2IMAS
 using Test
 using YAML: load_file as YAML_load_file
 using ArgParse: ArgParse
-using IMASDD: IMASDD
+import OMAS as IMASDD
 
 allowed_rtol = 1e-4
 
