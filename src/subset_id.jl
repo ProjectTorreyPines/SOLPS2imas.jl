@@ -32,16 +32,6 @@ function in_odr(; ix, iy, topcut, bottomcut, rightcut, kwargs...)
     return bottomcut + 1 < iy < topcut + 2 && rightcut + 1 < ix
 end
 
-# Following convention is used to index the edges of a cell
-# This ends up going around the cell starting with bottom x-edge,
-# right y-edge, top x-edge, and left y-edge
-# Thus, x-edges will have odd boundary index and y_edges will have even
-# List of tuples (boundary_ind, (corner pair forming edge))
-chosen_edge_order = [(1, (1, 2)),
-    (2, (2, 4)),
-    (3, (4, 3)),
-    (4, (3, 1))]
-
 """
     is_x_aligned(;boundary_ind)
 

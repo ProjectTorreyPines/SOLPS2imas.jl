@@ -1,0 +1,12 @@
+md5: 105c34af3f57bafb6f145f93da1fc56f
+frozen: true
+deps:
+- path: ITER_Lore_2296_00000/baserun/fort.33
+  repo:
+    url: git@github.com:ProjectTorreyPines/SOLPSTestSamples.git
+    rev_lock: b01dc28e1ed5eee5a98e820886dab4027170b8c4
+outs:
+- md5: 073070f4d08bc4ae178439a48bbdc2d1
+  size: 164639
+  hash: md5
+  path: fort.33

@@ -3,6 +3,7 @@ using Test
 using YAML: load_file as YAML_load_file
 using ArgParse: ArgParse
 import OMAS as IMASDD
+import SOLPS2IMAS: get_grid_subset_with_index
 
 allowed_rtol = 1e-4
 
@@ -21,6 +22,9 @@ function parse_commandline()
             :action => :store_true),
         ["--parser"],
         Dict(:help => "Stress test file parsing (other than b2 output files)",
+            :action => :store_true),
+        ["--fort"],
+        Dict(:help => "Test triangular mesh generation from fort files",
             :action => :store_true),
     )
     args = ArgParse.parse_args(s)
@@ -199,5 +203,65 @@ if args["solps2imas"]
         @test Set(brute_force_pfrcut_list) == Set(subset_pfrcut_element_list)
         @test Set(brute_force_corebnd_list) == Set(subset_corebnd_element_list)
         @test Set(brute_force_separatix_list) == Set(subset_separatix_element_list)
+    end
+end
+
+if args["fort"]
+    @testset "Test triangular mesh generation from fort files" begin
+        fort = (
+            "$(@__DIR__)/../samples/fort.33",
+            "$(@__DIR__)/../samples/fort.34",
+            "$(@__DIR__)/../samples/fort.35")
+        b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
+        b2output = "$(@__DIR__)/../samples/b2time.nc"
+        b2mn = "$(@__DIR__)/../samples/b2mn.dat"
+        ids = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn=b2mn, fort=fort)
+        grid_ggd = ids.edge_profiles.grid_ggd[1]
+        space = grid_ggd.space[1]
+
+        subset_nodes = get_grid_subset_with_index(grid_ggd, 1)
+        subset_faces = get_grid_subset_with_index(grid_ggd, 2)
+        subset_cells = get_grid_subset_with_index(grid_ggd, 5)
+        subset_b25nodes = get_grid_subset_with_index(grid_ggd, -1)
+        subset_b25faces = get_grid_subset_with_index(grid_ggd, -2)
+        subset_b25cells = get_grid_subset_with_index(grid_ggd, -5)
+        subset_trinodes = get_grid_subset_with_index(grid_ggd, -101)
+        subset_trifaces = get_grid_subset_with_index(grid_ggd, -102)
+        subset_tricells = get_grid_subset_with_index(grid_ggd, -105)
+        subset_comnodes = get_grid_subset_with_index(grid_ggd, -201)
+        subset_comfaces = get_grid_subset_with_index(grid_ggd, -202)
+        subset_comcells = get_grid_subset_with_index(grid_ggd, -205)
+
+        nodes = grid_ggd.space[1].objects_per_dimension[1].object
+        edges = grid_ggd.space[1].objects_per_dimension[2].object
+        cells = grid_ggd.space[1].objects_per_dimension[3].object
+
+        gmtry = SOLPS2IMAS.read_b2_output(b2gmtry)
+        nx = gmtry["dim"]["nx"]
+        ny = gmtry["dim"]["ny"]
+        extra_nodes = 2 * (nx + ny)
+
+        @test length(subset_nodes.element) == length(nodes)
+        @test length(subset_faces.element) == length(edges)
+        @test length(subset_cells.element) == length(cells)
+
+        @test length(subset_b25nodes.element) ==
+              length(subset_comnodes.element) + extra_nodes
+
+        @test length(subset_trinodes.element) + extra_nodes == length(nodes)
+
+        for ele ∈ subset_tricells.element
+            tricell_ind = ele.object[1].index
+            for bnd_ind ∈ 1:3
+                if length(cells[tricell_ind].boundary[bnd_ind].neighbours) > 0
+                    common_nodes = intersect(
+                        cells[tricell_ind].nodes,
+                        cells[cells[tricell_ind].boundary[bnd_ind].neighbours[1]].nodes,
+                    )
+                    vert_no = Tuple(indexin(common_nodes, cells[tricell_ind].nodes))
+                    @test SOLPS2IMAS.chosen_tri_edge_order[bnd_ind][2] == vert_no
+                end
+            end
+        end
     end
 end

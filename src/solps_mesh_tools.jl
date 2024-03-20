@@ -36,7 +36,7 @@ function data_xytoc(data; nx)
     return flat_data
 end
 
-function search_points(nodes, r, z)
+function search_points(nodes, r, z; tol=0)
     n = length(r)
     indices = zeros(Int, n)
     # If an index remains at 0, it means the point in question was not found
@@ -44,7 +44,7 @@ function search_points(nodes, r, z)
         for i ∈ eachindex(nodes)
             rn = nodes[i].geometry[1]
             zn = nodes[i].geometry[2]
-            if (rn == r[j]) && (zn == z[j])
+            if abs(rn - r[j]) <= tol && abs(zn - z[j]) <= tol
                 indices[j] = i
                 break
             end
@@ -60,7 +60,7 @@ search if an edge with nodes as edge_nodes already exists
 """
 function search_edges(edges, edge_nodes)
     for ii ∈ eachindex(edges)
-        if edge_nodes[2] == edges[ii].nodes[1] && edge_nodes[1] == edges[ii].nodes[2]
+        if edge_nodes[1] == edges[ii].nodes[1] && edge_nodes[2] == edges[ii].nodes[2]
             return ii
         elseif edge_nodes[2] == edges[ii].nodes[1] &&
                edge_nodes[1] == edges[ii].nodes[2]
