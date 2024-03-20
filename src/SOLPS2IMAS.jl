@@ -5,7 +5,7 @@ import OMAS as IMASDD
 using NCDatasets: Dataset, dimnames
 using YAML: load_file as YAML_load_file
 using DelimitedFiles: readdlm
-import GGDUtils: add_subset_element!, get_grid_subset_with_index, get_subset_boundary,
+import GGDUtils: add_subset_element!, get_grid_subset, get_subset_boundary,
     get_subset_space, subset_do
 
 export read_b2_output
@@ -188,37 +188,37 @@ function solps2imas(
             o2 = space.objects_per_dimension[2]  # 2D objects
             o3 = space.objects_per_dimension[3]  # 3D objects
 
-            subset_nodes = get_grid_subset_with_index(grid_ggd, 1)
-            subset_faces = get_grid_subset_with_index(grid_ggd, 2)
-            subset_xedges = get_grid_subset_with_index(grid_ggd, 3)
-            subset_yedges = get_grid_subset_with_index(grid_ggd, 4)
-            subset_cells = get_grid_subset_with_index(grid_ggd, 5)
+            subset_nodes = get_grid_subset(grid_ggd, 1)
+            subset_faces = get_grid_subset(grid_ggd, 2)
+            subset_xedges = get_grid_subset(grid_ggd, 3)
+            subset_yedges = get_grid_subset(grid_ggd, 4)
+            subset_cells = get_grid_subset(grid_ggd, 5)
             if cuts_found
-                subset_core = get_grid_subset_with_index(grid_ggd, 22)
-                subset_sol = get_grid_subset_with_index(grid_ggd, 23)
-                subset_odr = get_grid_subset_with_index(grid_ggd, 24)
-                subset_idr = get_grid_subset_with_index(grid_ggd, 25)
-                subset_xp = get_grid_subset_with_index(grid_ggd, 6)
-                subset_corecut = get_grid_subset_with_index(grid_ggd, 7)
-                subset_pfrcut = get_grid_subset_with_index(grid_ggd, 8)
-                subset_othroat = get_grid_subset_with_index(grid_ggd, 9)
-                subset_ithroat = get_grid_subset_with_index(grid_ggd, 10)
+                subset_core = get_grid_subset(grid_ggd, 22)
+                subset_sol = get_grid_subset(grid_ggd, 23)
+                subset_odr = get_grid_subset(grid_ggd, 24)
+                subset_idr = get_grid_subset(grid_ggd, 25)
+                subset_xp = get_grid_subset(grid_ggd, 6)
+                subset_corecut = get_grid_subset(grid_ggd, 7)
+                subset_pfrcut = get_grid_subset(grid_ggd, 8)
+                subset_othroat = get_grid_subset(grid_ggd, 9)
+                subset_ithroat = get_grid_subset(grid_ggd, 10)
                 if !isnothing(jxa)
-                    subset_omp = get_grid_subset_with_index(grid_ggd, 11)
-                    subset_ompsep = get_grid_subset_with_index(grid_ggd, 101)
+                    subset_omp = get_grid_subset(grid_ggd, 11)
+                    subset_ompsep = get_grid_subset(grid_ggd, 101)
                 end
                 if !isnothing(jxi)
-                    subset_imp = get_grid_subset_with_index(grid_ggd, 12)
-                    subset_impsep = get_grid_subset_with_index(grid_ggd, 102)
+                    subset_imp = get_grid_subset(grid_ggd, 12)
+                    subset_impsep = get_grid_subset(grid_ggd, 102)
                 end
-                subset_corebnd = get_grid_subset_with_index(grid_ggd, 15)
-                subset_separatix = get_grid_subset_with_index(grid_ggd, 16)
-                subset_otsep = get_grid_subset_with_index(grid_ggd, 103)
-                subset_itsep = get_grid_subset_with_index(grid_ggd, 104)
+                subset_corebnd = get_grid_subset(grid_ggd, 15)
+                subset_separatix = get_grid_subset(grid_ggd, 16)
+                subset_otsep = get_grid_subset(grid_ggd, 103)
+                subset_itsep = get_grid_subset(grid_ggd, 104)
             end
 
-            subset_otarget = get_grid_subset_with_index(grid_ggd, 13)
-            subset_itarget = get_grid_subset_with_index(grid_ggd, 14)
+            subset_otarget = get_grid_subset(grid_ggd, 13)
+            subset_itarget = get_grid_subset(grid_ggd, 14)
 
             # Resizing objects to hold cell geometry data
             # Should be fewer than this many points, but this way we won't under-fill
@@ -510,14 +510,14 @@ function solps2imas(
         # Copy all B2.5 nodes, faces, edges, cells to grid_subset with negative indices
         for (ii, gsi) ∈ enumerate([1, 2, 5])
             grid_ggd.grid_subset[cur_no_subsets+ii] =
-                deepcopy(get_grid_subset_with_index(grid_ggd, gsi))
+                deepcopy(get_grid_subset(grid_ggd, gsi))
             grid_ggd.grid_subset[cur_no_subsets+ii].identifier.index = -gsi
             grid_ggd.grid_subset[cur_no_subsets+ii].identifier.name *= "_B2.5"
             gsi_ch[gsi] = -gsi
         end
-        subset_nodes = get_grid_subset_with_index(grid_ggd, 1)
-        subset_faces = get_grid_subset_with_index(grid_ggd, 2)
-        subset_cells = get_grid_subset_with_index(grid_ggd, 5)
+        subset_nodes = get_grid_subset(grid_ggd, 1)
+        subset_faces = get_grid_subset(grid_ggd, 2)
+        subset_cells = get_grid_subset(grid_ggd, 5)
         subset_b25nodes = grid_ggd.grid_subset[cur_no_subsets+1]
         subset_b25faces = grid_ggd.grid_subset[cur_no_subsets+2]
         subset_b25cells = grid_ggd.grid_subset[cur_no_subsets+3]
