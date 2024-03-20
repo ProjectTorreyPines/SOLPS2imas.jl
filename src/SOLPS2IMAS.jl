@@ -1,7 +1,7 @@
 module SOLPS2IMAS
 
 using Revise
-using OMAS: OMAS
+import OMAS as IMASDD
 using NCDatasets: Dataset, dimnames
 using YAML: load_file as YAML_load_file
 using DelimitedFiles: readdlm
@@ -86,7 +86,7 @@ end
 Main function of the module. Takes in a geometry file and a
 output file (either b2time or b2fstate) and a grid_ggd
 description in the form of a Dict or filename to equivalent
-YAML file. Returns data in OMAS.dd datastructure.
+YAML file. Returns data in IMASDD.dd datastructure.
 """
 function solps2imas(
     b2gmtry,
@@ -95,8 +95,8 @@ function solps2imas(
     b2mn=nothing,
     load_bb=false,
 )
-    # Initialize an empty OMAS data structre
-    ids = OMAS.dd()
+    # Initialize an empty IMAS data structre
+    ids = IMASDD.dd()
 
     # Setup the grid first
     gmtry = read_b2_output(b2gmtry)
