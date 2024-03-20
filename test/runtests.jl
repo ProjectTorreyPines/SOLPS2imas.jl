@@ -3,7 +3,7 @@ using Test
 using YAML: load_file as YAML_load_file
 using ArgParse: ArgParse
 import OMAS as IMASDD
-import SOLPS2IMAS: get_grid_subset_with_index
+import SOLPS2IMAS: get_grid_subset
 
 allowed_rtol = 1e-4
 
@@ -170,11 +170,11 @@ if args["solps2imas"]
         ny = gmtry["dim"]["ny"]
         cuts = Dict([(Symbol(key), gmtry["data"][key][1]) for key ∈ cut_keys])
         subset_pfrcut =
-            SOLPS2IMAS.get_grid_subset_with_index(dd.edge_profiles.grid_ggd[1], 8)
+            SOLPS2IMAS.get_grid_subset(dd.edge_profiles.grid_ggd[1], 8)
         subset_corebnd =
-            SOLPS2IMAS.get_grid_subset_with_index(dd.edge_profiles.grid_ggd[1], 15)
+            SOLPS2IMAS.get_grid_subset(dd.edge_profiles.grid_ggd[1], 15)
         subset_separatix =
-            SOLPS2IMAS.get_grid_subset_with_index(dd.edge_profiles.grid_ggd[1], 16)
+            SOLPS2IMAS.get_grid_subset(dd.edge_profiles.grid_ggd[1], 16)
         cells = dd.edge_profiles.grid_ggd[1].space[1].objects_per_dimension[3].object
         subset_pfrcut_element_list =
             [ele.object[1].index for ele ∈ subset_pfrcut.element]
@@ -219,18 +219,18 @@ if args["fort"]
         grid_ggd = ids.edge_profiles.grid_ggd[1]
         space = grid_ggd.space[1]
 
-        subset_nodes = get_grid_subset_with_index(grid_ggd, 1)
-        subset_faces = get_grid_subset_with_index(grid_ggd, 2)
-        subset_cells = get_grid_subset_with_index(grid_ggd, 5)
-        subset_b25nodes = get_grid_subset_with_index(grid_ggd, -1)
-        subset_b25faces = get_grid_subset_with_index(grid_ggd, -2)
-        subset_b25cells = get_grid_subset_with_index(grid_ggd, -5)
-        subset_trinodes = get_grid_subset_with_index(grid_ggd, -101)
-        subset_trifaces = get_grid_subset_with_index(grid_ggd, -102)
-        subset_tricells = get_grid_subset_with_index(grid_ggd, -105)
-        subset_comnodes = get_grid_subset_with_index(grid_ggd, -201)
-        subset_comfaces = get_grid_subset_with_index(grid_ggd, -202)
-        subset_comcells = get_grid_subset_with_index(grid_ggd, -205)
+        subset_nodes = get_grid_subset(grid_ggd, 1)
+        subset_faces = get_grid_subset(grid_ggd, "faces")
+        subset_cells = get_grid_subset(grid_ggd, "cells")
+        subset_b25nodes = get_grid_subset(grid_ggd, -1)
+        subset_b25faces = get_grid_subset(grid_ggd, -2)
+        subset_b25cells = get_grid_subset(grid_ggd, -5)
+        subset_trinodes = get_grid_subset(grid_ggd, -101)
+        subset_trifaces = get_grid_subset(grid_ggd, -102)
+        subset_tricells = get_grid_subset(grid_ggd, -105)
+        subset_comnodes = get_grid_subset(grid_ggd, -201)
+        subset_comfaces = get_grid_subset(grid_ggd, -202)
+        subset_comcells = get_grid_subset(grid_ggd, -205)
 
         nodes = grid_ggd.space[1].objects_per_dimension[1].object
         edges = grid_ggd.space[1].objects_per_dimension[2].object
