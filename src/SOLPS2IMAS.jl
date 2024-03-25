@@ -1,7 +1,7 @@
 module SOLPS2IMAS
 
 using Revise
-import OMAS as IMASDD
+using IMASDD: IMASDD
 using NCDatasets: Dataset, dimnames
 using YAML: load_file as YAML_load_file
 using DelimitedFiles: readdlm
@@ -288,6 +288,9 @@ function solps2imas(
                             resize!(edges, edge_ind)
                             edges[edge_ind].nodes = edge_nodes
                             resize!(edges[edge_ind].boundary, 2)
+                            for bnd ∈ edges[edge_ind].boundary
+                                bnd.neighbours = Int64[]
+                            end
                             for (ii, edge_bnd) ∈ enumerate(edges[edge_ind].boundary)
                                 edge_bnd.index = edge_nodes[ii]
                             end
@@ -596,7 +599,6 @@ function solps2imas(
             resize!(cells, length(cells) + 1)
             this_cell_ind = length(cells)
             fntri_inds[fntri] = this_cell_ind
-            resize!(cells[this_cell_ind].nodes, 3)
             cells[this_cell_ind].nodes = [
                 fnode_inds[fntriIndNodes[fntri, 2]],
                 fnode_inds[fntriIndNodes[fntri, 3]],

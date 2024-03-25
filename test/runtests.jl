@@ -2,7 +2,7 @@ using SOLPS2IMAS: SOLPS2IMAS
 using Test
 using YAML: load_file as YAML_load_file
 using ArgParse: ArgParse
-import OMAS as IMASDD
+using IMASDD: IMASDD
 import SOLPS2IMAS: get_grid_subset
 
 allowed_rtol = 1e-4
