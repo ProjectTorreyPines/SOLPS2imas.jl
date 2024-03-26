@@ -8,7 +8,9 @@ fort = (
     "$(@__DIR__)/../samples/fort.33",
     "$(@__DIR__)/../samples/fort.34",
     "$(@__DIR__)/../samples/fort.35")
-print("solps2imas(b2gmtry, b2output; b2mn=b2mn, fort=fort) time with compilation: ")
-@time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn=b2mn, fort=fort)
-print("solps2imas(b2gmtry, b2output; b2mn=b2mn, fort=fort) time (true runtime): ")
-@time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn=b2mn, fort=fort)
+print("solps2imas(b2gmtry, b2output; b2mn, fort) time with compilation: ")
+@profview dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn, fort);
+@profview_allocs dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn, fort);
+@time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn, fort);
+# print("solps2imas(b2gmtry, b2output; b2mn, fort) time (true runtime): ")
+# @time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn, fort);
