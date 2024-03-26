@@ -42,8 +42,8 @@ function search_points(nodes, r, z; tol=0)
     # If an index remains at 0, it means the point in question was not found
     for j ∈ 1:n
         for i ∈ eachindex(nodes)
-            rn = nodes[i].geometry[1]
-            zn = nodes[i].geometry[2]
+            rn, zn = nodes[i].geometry
+            # zn = nodes[i].geometry[2]
             if abs(rn - r[j]) <= tol && abs(zn - z[j]) <= tol
                 indices[j] = i
                 break
@@ -60,10 +60,11 @@ search if an edge with nodes as edge_nodes already exists
 """
 function search_edges(edges, edge_nodes)
     for ii ∈ eachindex(edges)
-        if edge_nodes[1] == edges[ii].nodes[1] && edge_nodes[2] == edges[ii].nodes[2]
+        edges_ii_nodes = edges[ii].nodes
+        if edge_nodes[1] == edges_ii_nodes[1] && edge_nodes[2] == edges_ii_nodes[2]
             return ii
-        elseif edge_nodes[2] == edges[ii].nodes[1] &&
-               edge_nodes[1] == edges[ii].nodes[2]
+        elseif edge_nodes[2] == edges_ii_nodes[1] &&
+               edge_nodes[1] == edges_ii_nodes[2]
             return ii
         end
     end
