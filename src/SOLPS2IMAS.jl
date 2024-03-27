@@ -6,7 +6,7 @@ using NCDatasets: Dataset, dimnames
 using YAML: load_file as YAML_load_file
 using DelimitedFiles: readdlm
 import GGDUtils: add_subset_element!, get_grid_subset, get_subset_boundary,
-    get_subset_space, subset_do
+    get_subset_space, subset_do, deepcopy_subset
 
 export read_b2_output
 export solps2imas
@@ -512,8 +512,9 @@ function solps2imas(
         resize!(grid_ggd.grid_subset, cur_no_subsets + 12)
         # Copy all B2.5 nodes, faces, edges, cells to grid_subset with negative indices
         for (ii, gsi) ∈ enumerate([1, 2, 5])
-            grid_ggd.grid_subset[cur_no_subsets+ii] =
-                deepcopy(get_grid_subset(grid_ggd, gsi))
+            grid_ggd.grid_subset[cur_no_subsets+ii] = deepcopy_subset(
+                get_grid_subset(grid_ggd, gsi),
+            )
             grid_ggd.grid_subset[cur_no_subsets+ii].identifier.index = -gsi
             grid_ggd.grid_subset[cur_no_subsets+ii].identifier.name *= "_B2.5"
             gsi_ch[gsi] = -gsi

@@ -170,7 +170,8 @@ function attach_neightbours(cells, edges, gmtry, it)
         for neighbour_ind ∈ get_neighbour_inds(ic, gmtry, it)
             for boundary ∈ cell.boundary
                 for neighbour_boundary ∈ cells[neighbour_ind].boundary
-                    if getfield(boundary, :index) == getfield(neighbour_boundary, :index) &&
+                    if getfield(boundary, :index) ==
+                       getfield(neighbour_boundary, :index) &&
                        neighbour_ind ∉ getfield(boundary, :neighbours)
                         append!(boundary.neighbours, neighbour_ind)
                     end
@@ -191,7 +192,8 @@ function attach_neightbours(cells, edges, gmtry, it)
             for neighbour_edge_ind ∈ neighbour_edge_inds
                 for edge_bnd ∈ getfield(edges[edge_ind], :boundary)
                     for neighbour_edge_bnd ∈ edges[neighbour_edge_ind].boundary
-                        if getfield(edge_bnd, :index) == getfield(neighbour_edge_bnd, :index) &&
+                        if getfield(edge_bnd, :index) ==
+                           getfield(neighbour_edge_bnd, :index) &&
                            neighbour_edge_ind ∉ getfield(edge_bnd, :neighbours)
                             append!(edge_bnd.neighbours, neighbour_edge_ind)
                         end
