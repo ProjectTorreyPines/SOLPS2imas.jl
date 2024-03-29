@@ -564,7 +564,8 @@ function solps2imas(
         # Adding new node positions and cell corners data
         f33 = readdlm(fort[1])
         fnnodes = f33[1, 1]
-        fnodeXnodeY = vec(f33[2:end, :]') * 1e-2 # cm to m
+        f33 = map(x -> typeof(x) == Float64 ? x : missing, f33[2:end, :])
+        fnodeXnodeY = collect(skipmissing(vec(f33'))) * 1e-2 # cm to m
         fnodeX = fnodeXnodeY[1:fnnodes]
         fnodeY = fnodeXnodeY[fnnodes+1:end]
         fnode_inds = Array{Int64}(undef, fnnodes)
