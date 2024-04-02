@@ -1,12 +1,12 @@
 module SOLPS2IMAS
 
 using Revise
-import OMAS as IMASDD
+using IMASDD: IMASDD
 using NCDatasets: Dataset, dimnames
 using YAML: load_file as YAML_load_file
 using DelimitedFiles: readdlm
 import GGDUtils: add_subset_element!, get_grid_subset, get_subset_boundary,
-    get_subset_space, subset_do
+    get_subset_space, subset_do, deepcopy_subset
 
 export read_b2_output
 export solps2imas
@@ -288,6 +288,9 @@ function solps2imas(
                             resize!(edges, edge_ind)
                             edges[edge_ind].nodes = edge_nodes
                             resize!(edges[edge_ind].boundary, 2)
+                            for bnd ∈ edges[edge_ind].boundary
+                                bnd.neighbours = Int64[]
+                            end
                             for (ii, edge_bnd) ∈ enumerate(edges[edge_ind].boundary)
                                 edge_bnd.index = edge_nodes[ii]
                             end
@@ -509,8 +512,9 @@ function solps2imas(
         resize!(grid_ggd.grid_subset, cur_no_subsets + 12)
         # Copy all B2.5 nodes, faces, edges, cells to grid_subset with negative indices
         for (ii, gsi) ∈ enumerate([1, 2, 5])
-            grid_ggd.grid_subset[cur_no_subsets+ii] =
-                deepcopy(get_grid_subset(grid_ggd, gsi))
+            grid_ggd.grid_subset[cur_no_subsets+ii] = deepcopy_subset(
+                get_grid_subset(grid_ggd, gsi),
+            )
             grid_ggd.grid_subset[cur_no_subsets+ii].identifier.index = -gsi
             grid_ggd.grid_subset[cur_no_subsets+ii].identifier.name *= "_B2.5"
             gsi_ch[gsi] = -gsi
@@ -596,7 +600,6 @@ function solps2imas(
             resize!(cells, length(cells) + 1)
             this_cell_ind = length(cells)
             fntri_inds[fntri] = this_cell_ind
-            resize!(cells[this_cell_ind].nodes, 3)
             cells[this_cell_ind].nodes = [
                 fnode_inds[fntriIndNodes[fntri, 2]],
                 fnode_inds[fntriIndNodes[fntri, 3]],

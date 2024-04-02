@@ -42,8 +42,8 @@ function search_points(nodes, r, z; tol=0)
     # If an index remains at 0, it means the point in question was not found
     for j ∈ 1:n
         for i ∈ eachindex(nodes)
-            rn = nodes[i].geometry[1]
-            zn = nodes[i].geometry[2]
+            rn, zn = getfield(nodes[i], :geometry)
+            # zn = nodes[i].geometry[2]
             if abs(rn - r[j]) <= tol && abs(zn - z[j]) <= tol
                 indices[j] = i
                 break
@@ -60,10 +60,11 @@ search if an edge with nodes as edge_nodes already exists
 """
 function search_edges(edges, edge_nodes)
     for ii ∈ eachindex(edges)
-        if edge_nodes[1] == edges[ii].nodes[1] && edge_nodes[2] == edges[ii].nodes[2]
+        edges_ii_nodes = getfield(edges[ii], :nodes)
+        if edge_nodes[1] == edges_ii_nodes[1] && edge_nodes[2] == edges_ii_nodes[2]
             return ii
-        elseif edge_nodes[2] == edges[ii].nodes[1] &&
-               edge_nodes[1] == edges[ii].nodes[2]
+        elseif edge_nodes[2] == edges_ii_nodes[1] &&
+               edge_nodes[1] == edges_ii_nodes[2]
             return ii
         end
     end
@@ -169,8 +170,9 @@ function attach_neightbours(cells, edges, gmtry, it)
         for neighbour_ind ∈ get_neighbour_inds(ic, gmtry, it)
             for boundary ∈ cell.boundary
                 for neighbour_boundary ∈ cells[neighbour_ind].boundary
-                    if boundary.index == neighbour_boundary.index &&
-                       neighbour_ind ∉ boundary.neighbours
+                    if getfield(boundary, :index) ==
+                       getfield(neighbour_boundary, :index) &&
+                       neighbour_ind ∉ getfield(boundary, :neighbours)
                         append!(boundary.neighbours, neighbour_ind)
                     end
                 end
@@ -188,10 +190,11 @@ function attach_neightbours(cells, edges, gmtry, it)
             end
             setdiff!(neighbour_edge_inds, edge_ind)
             for neighbour_edge_ind ∈ neighbour_edge_inds
-                for edge_bnd ∈ edges[edge_ind].boundary
+                for edge_bnd ∈ getfield(edges[edge_ind], :boundary)
                     for neighbour_edge_bnd ∈ edges[neighbour_edge_ind].boundary
-                        if edge_bnd.index == neighbour_edge_bnd.index &&
-                           neighbour_edge_ind ∉ edge_bnd.neighbours
+                        if getfield(edge_bnd, :index) ==
+                           getfield(neighbour_edge_bnd, :index) &&
+                           neighbour_edge_ind ∉ getfield(edge_bnd, :neighbours)
                             append!(edge_bnd.neighbours, neighbour_edge_ind)
                         end
                     end
