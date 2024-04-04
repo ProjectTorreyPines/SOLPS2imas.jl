@@ -21,8 +21,12 @@ function read_b2time_output(filename)
                 y ∈ [findfirst(x -> x == dimord, d) for dimord ∈ dim_order] if
                 y !== nothing
             ]
+            scale = 1.0
+            if "scale" in keys(ds[key].attrib)
+                scale = ds[key].attrib["scale"]
+            end
             try
-                ret_dict["data"][key] = permutedims(Array(ds[key]), permute)
+                ret_dict["data"][key] = permutedims(Array(ds[key]), permute) .* scale
             catch e
                 println("Error in reading ", key)
                 showerror(stdout, e)
