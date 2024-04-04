@@ -16,7 +16,7 @@
 na: ["ion[:].density[:].values", 5]
 ua: ["ion[:].velocity[:].parallel", 5]
 te: ["electrons.temperature[:].values", 5]
-ti: ["ion[1].temperature[:].values", 5] # atom(ion) temperature is averaged over all species, so only store in 1st index
+ti: ["t_i_average[:].values", 5] # atom(ion) temperature is averaged over all species, so only store in t_i_average
 po: ["phi_potential[:].values", 5]
 
 # --------
@@ -44,4 +44,4 @@ pe: ["electrons.pressure[:].values", 5]
 # Page 391
 ne2d: ["electrons.density[:].values", 5]
 te2d: ["electrons.temperature[:].values", 5]
-ti2d: ["ion[1].temperature[:].values", 5] # atom(ion) temperature is averaged over all species, so only store in 1st index
+ti2d: ["t_i_average[:].values", 5] # atom(ion) temperature is averaged over all species, so only store in t_i_average
