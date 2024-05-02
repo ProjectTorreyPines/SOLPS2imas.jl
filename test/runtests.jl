@@ -173,18 +173,18 @@ if args["solps2imas"]
             SOLPS2IMAS.get_grid_subset(dd.edge_profiles.grid_ggd[1], 8)
         subset_corebnd =
             SOLPS2IMAS.get_grid_subset(dd.edge_profiles.grid_ggd[1], 15)
-        subset_separatix =
+        subset_separatrix =
             SOLPS2IMAS.get_grid_subset(dd.edge_profiles.grid_ggd[1], 16)
         cells = dd.edge_profiles.grid_ggd[1].space[1].objects_per_dimension[3].object
         subset_pfrcut_element_list =
             [ele.object[1].index for ele ∈ subset_pfrcut.element]
         subset_corebnd_element_list =
             [ele.object[1].index for ele ∈ subset_corebnd.element]
-        subset_separatix_element_list =
-            [ele.object[1].index for ele ∈ subset_separatix.element]
+        subset_separatrix_element_list =
+            [ele.object[1].index for ele ∈ subset_separatrix.element]
         brute_force_pfrcut_list = []
         brute_force_corebnd_list = []
-        brute_force_separatix_list = []
+        brute_force_separatrix_list = []
         for iy ∈ 1:ny
             for ix ∈ 1:nx
                 for boundary_ind ∈ 1:4
@@ -194,15 +194,15 @@ if args["solps2imas"]
                         append!(brute_force_pfrcut_list, edge_ind)
                     elseif SOLPS2IMAS.is_core_boundary(; ix, iy, boundary_ind, cuts...)
                         append!(brute_force_corebnd_list, edge_ind)
-                    elseif SOLPS2IMAS.is_separatix(; iy, boundary_ind, cuts...)
-                        append!(brute_force_separatix_list, edge_ind)
+                    elseif SOLPS2IMAS.is_separatrix(; iy, boundary_ind, cuts...)
+                        append!(brute_force_separatrix_list, edge_ind)
                     end
                 end
             end
         end
         @test Set(brute_force_pfrcut_list) == Set(subset_pfrcut_element_list)
         @test Set(brute_force_corebnd_list) == Set(subset_corebnd_element_list)
-        @test Set(brute_force_separatix_list) == Set(subset_separatix_element_list)
+        @test Set(brute_force_separatrix_list) == Set(subset_separatrix_element_list)
     end
 end
 

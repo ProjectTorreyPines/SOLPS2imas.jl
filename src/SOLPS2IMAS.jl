@@ -8,7 +8,6 @@ using DelimitedFiles: readdlm
 import GGDUtils: add_subset_element!, get_grid_subset, get_subset_boundary,
     get_subset_space, subset_do, deepcopy_subset
 
-export read_b2_output
 export solps2imas
 
 include("parser.jl")
@@ -43,12 +42,11 @@ dict2prop!(obj, dict) =
 solps_var_to_imas = YAML_load_file("$(@__DIR__)/solps_var_to_imas.yml")
 """
     val_obj(
-    ggd::IMASDD.edge_profiles__ggd,
-    var::String,
-    grid_ggd_index::Int64;
-    gsi_ch::Dict{Int64, Int64}=Dict{Int64, Int64}(),
-
-)
+        ggd::IMASDD.edge_profiles__ggd,
+        var::String,
+        grid_ggd_index::Int64;
+        gsi_ch::Dict{Int64, Int64}=Dict{Int64, Int64}(),
+    )
 
 Given SOLPS variable name (var), returns pair of parent object and property name
 to write value on. If var is not found in solps_var_to_imas, returns nothing, nothing.
@@ -113,23 +111,20 @@ chosen_tri_edge_order = [(1, (1, 2)),
 
 """
     solps2imas(
-    b2gmtry::String,
-    b2output::String="";
-    gsdesc::String=default_gsdesc,
-    b2mn::String="",
-    fort::Tuple{String, String, String}=("", "", ""),
-    fort_tol::Float64=1e-6,
-    load_bb::Bool=false,
+        b2gmtry::String,
+        b2output::String="";
+        gsdesc::String=default_gsdesc,
+        b2mn::String="",
+        fort::Tuple{String, String, String}=("", "", ""),
+        fort_tol::Float64=1e-6,
+        load_bb::Bool=false,
+    )::IMASDD.dd
 
-)
-
-Main function of the module. Takes in a geometry file and a
-output file (either b2time or b2fstate) and a grid_ggd
-description in the form of a Dict or filename to equivalent
-YAML file. Additionally, EIRENE fort files can be provided as tuple of 3 filenames
-consisting fort.33, fort.34, and fort.35 files. The grids in these files are matched
-with SOLPS grid with a tolerance of fort_tol (defaults to 1e-6).
-Returns data in IMASDD.dd datastructure.
+Main function of the module. Takes in a geometry file and an (optional) output file
+(either b2time or b2fstate) and a grid\\_ggd description in the form of a Dict or
+filename to equivalent YAML file. Additionally, EIRENE `fort` files can be provided as
+tuple of 3 filenames consisting fort.33, fort.34, and fort.35 files. The grids in these
+files are matched with SOLPS grid with a tolerance of `fort_tol` (defaults to 1e-6).
 """
 function solps2imas(
     b2gmtry::String,
@@ -139,7 +134,7 @@ function solps2imas(
     fort::Tuple{String, String, String}=("", "", ""),
     fort_tol::Float64=1e-6,
     load_bb::Bool=false,
-)
+)::IMASDD.dd
     # Initialize an empty IMAS data structre
     ids = IMASDD.dd()
 
@@ -212,7 +207,7 @@ function solps2imas(
                     subset_impsep = get_grid_subset(grid_ggd, 102)
                 end
                 subset_corebnd = get_grid_subset(grid_ggd, 15)
-                subset_separatix = get_grid_subset(grid_ggd, 16)
+                subset_separatrix = get_grid_subset(grid_ggd, 16)
                 subset_otsep = get_grid_subset(grid_ggd, 103)
                 subset_itsep = get_grid_subset(grid_ggd, 104)
             end
@@ -260,11 +255,11 @@ function solps2imas(
                         # record that
                         # Note that time index has been fixed to 1 here. Only handling
                         # fixed grid geometry through the run cases.
-                        i_existing = search_points(
+                        i_existing = search_point(
                             nodes,
                             crx[1, icorner, iy, ix],
                             cry[1, icorner, iy, ix],
-                        )[1]
+                        )
                         if i_existing == 0
                             resize!(nodes, j)
                             nodes[j].geometry =
@@ -357,7 +352,7 @@ function solps2imas(
             end
             if cuts_found
                 # Add boundaries
-                attach_neightbours(cells, edges, gmtry, it)
+                attach_neightbours!(cells, edges, gmtry, it)
                 # Adding edges to subsets
                 for iy ∈ 1:ny
                     for ix ∈ 1:nx
@@ -457,14 +452,14 @@ function solps2imas(
                     subset_do(intersect, idr_boundary_elements, odr_boundary_elements)
                 subset_corebnd.element =
                     subset_do(setdiff, core_boundary_elements, sol_boundary_elements)
-                subset_separatix.element = subset_do(intersect, sol_boundary_elements,
+                subset_separatrix.element = subset_do(intersect, sol_boundary_elements,
                     subset_do(union, core_boundary_elements,
                         odr_boundary_elements,
                         idr_boundary_elements))
                 if !isnothing(jxa)
                     subset_ompsep.element = subset_do(
                         intersect,
-                        subset_separatix.element,
+                        subset_separatrix.element,
                         subset_omp.element;
                         space,
                         use_nodes=true,
@@ -473,7 +468,7 @@ function solps2imas(
                 if !isnothing(jxi)
                     subset_impsep.element = subset_do(
                         intersect,
-                        subset_separatix.element,
+                        subset_separatrix.element,
                         subset_imp.element;
                         space,
                         use_nodes=true,
@@ -481,14 +476,14 @@ function solps2imas(
                 end
                 subset_otsep.element = subset_do(
                     intersect,
-                    subset_separatix.element,
+                    subset_separatrix.element,
                     subset_otarget.element;
                     space,
                     use_nodes=true,
                 )
                 subset_itsep.element = subset_do(
                     intersect,
-                    subset_separatix.element,
+                    subset_separatrix.element,
                     subset_itarget.element;
                     space,
                     use_nodes=true,
@@ -574,12 +569,12 @@ function solps2imas(
         fnodeY = fnodeXnodeY[fnnodes+1:end]
         fnode_inds = Array{Int64}(undef, fnnodes)
         for fnind ∈ 1:fnnodes
-            i_existing = search_points(
+            i_existing = search_point(
                 nodes,
                 fnodeX[fnind],
                 fnodeY[fnind];
                 tol=fort_tol,
-            )[1]
+            )
             if i_existing == 0
                 resize!(nodes, length(nodes) + 1)
                 this_node_ind = length(nodes)

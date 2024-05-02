@@ -1,32 +1,33 @@
 """
-    xytoc(ix, iy; nx)
+    xytoc(ix::Int, iy::Int; nx::Int)::Int
 
-Converts SOLPS indices for crx, cry (ix, iy) that go from 1:nx, 1:ny
-into the linear index ic used in IMAS for corresponding cells
+Converts SOLPS indices for crx, cry (`ix`, `iy`) that go from 1:`nx`, 1:`ny`
+into the linear index `ic` used in IMAS for corresponding cells.
 """
-function xytoc(ix, iy; nx)
+function xytoc(ix::Int, iy::Int; nx::Int)::Int
     ic::Int = (iy - 1) * nx + ix
     return ic
 end
 
 """
-    ctoxy(ic; nx)
+    ctoxy(ic::Int; nx::Int)::Tuple{Int, Int}
 
-Inverse of xytoc
+Inverse of xytoc.
 """
-function ctoxy(ic; nx)
+function ctoxy(ic::Int; nx::Int)::Tuple{Int, Int}
     ix::Int = mod(ic - 1, nx) + 1
     iy::Int = (ic - 1) ÷ nx + 1
     return ix, iy
 end
 
 """
-    data_xytoc(data; nx)
+    data_xytoc(data::Matrix{Float64}; nx::Int)::Vector{Float64}
 
-Flattens 2d data given on cell indices ix, iy into 1d data on linear index ic. ic is
-calculated using xytoc function. Data is assumed to have dimensions (ny, nx)
+Flattens 2d data given on cell indices `ix`, `iy` into 1d data on linear index `ic`.
+`ic` is calculated using xytoc function. Data is assumed to have dimensions (ny, `nx`)
+where ny is not required in this conversion.
 """
-function data_xytoc(data; nx)
+function data_xytoc(data::Matrix{Float64}; nx::Int)::Vector{Float64}
     flat_data = Array{eltype(data)}(undef, length(data))
     for ix ∈ axes(data, 2)
         for iy ∈ axes(data, 1)
@@ -36,29 +37,51 @@ function data_xytoc(data; nx)
     return flat_data
 end
 
-function search_points(nodes, r, z; tol=0)
-    n = length(r)
-    indices = zeros(Int, n)
-    # If an index remains at 0, it means the point in question was not found
-    for j ∈ 1:n
-        for i ∈ eachindex(nodes)
-            rn, zn = getfield(nodes[i], :geometry)
-            # zn = nodes[i].geometry[2]
-            if abs(rn - r[j]) <= tol && abs(zn - z[j]) <= tol
-                indices[j] = i
-                break
-            end
+edges_nodes_type = IMASDD.IDSvector{
+    IMASDD.edge_profiles__grid_ggd___space___objects_per_dimension___object{T},
+} where {T}
+
+"""
+    search_point(
+        nodes::IMASDD.IDSvector{IMASDD.edge_profiles__grid_ggd___space___objects_per_dimension___object{T}},
+        r::Real,
+        z::Real;
+        tol::Float64=0.0,
+    )::Int where {T}
+
+Search if a point (`r`, `z`) is present in the nodes array. Here `nodes` is generally
+available in `ids.edge_profiles.grid_ggd[:].space[:].objects_per_dimension[1].object`
+
+If the point is not found, the function returns 0.
+"""
+function search_point(
+    nodes::edges_nodes_type,
+    r::Real,
+    z::Real;
+    tol::Float64=0.0,
+)::Int
+    for ii ∈ eachindex(nodes)
+        rn, zn = getfield(nodes[ii], :geometry)
+        if abs(rn - r) <= tol && abs(zn - z) <= tol
+            return ii
         end
     end
-    return indices
+    return 0
 end
 
 """
-    search_edges(edges, edge_nodes)
+    search_edges(
+        edges::IMASDD.IDSvector{IMASDD.edge_profiles__grid_ggd___space___objects_per_dimension___object{T}},
+        edge_nodes::Array{Int, 1}
+    )::Int where {T}
 
-search if an edge with nodes as edge_nodes already exists
+Search if an edge with nodes as `edge_nodes` already exists in the `edges` array.
+`edges` is generally available in
+`ids.edge_profiles.grid_ggd[:].space[:].objects_per_dimension[2].object`
+
+If the edge is not found, the function returns 0.
 """
-function search_edges(edges, edge_nodes)
+function search_edges(edges::edges_nodes_type, edge_nodes::Array{Int, 1})::Int
     for ii ∈ eachindex(edges)
         edges_ii_nodes = getfield(edges[ii], :nodes)
         if edge_nodes[1] == edges_ii_nodes[1] && edge_nodes[2] == edges_ii_nodes[2]
@@ -72,23 +95,43 @@ function search_edges(edges, edge_nodes)
 end
 
 """
-    distance_between_nodes(nodes, node_inds)
+    distance_between_nodes(nodes::edges_nodes_type, node_inds::Array{Int, 1})
 
-Return distance between two node indices
+Return distance between two nodes with indices `node_inds` in `nodes` array. `nodes` is
+generally available in
+`ids.edge_profiles.grid_ggd[:].space[:].objects_per_dimension[1].object`.
 """
-function distance_between_nodes(nodes, node_inds)
+function distance_between_nodes(nodes::edges_nodes_type, node_inds::Array{Int, 1})
     return √(sum((nodes[node_inds[1]].geometry - nodes[node_inds[2]].geometry) .^ 2))
 end
 
 """
-    neighbour_inds(ic; nx, ny, leftcut, rightcut, topcut, bottomcut)
+    neighbour_inds(
+        ic::Int;
+        nx::Int,
+        ny::Int,
+        leftcut::Int,
+        rightcut::Int,
+        topcut::Int,
+        bottomcut::Int,
+    )::Vector{Int}
 
-Returns indices of neighbours of cell with linear index ic. This function uses the SOLPS
-grid generation algorithm to determine the neighbours. However, SOLPS geometry file
-actually provides the neighbor indices directly. Thus, this function is not used in the
-code anywhere but is kept here for reference.
+(deprecated function)
+
+Returns indices of neighbours of cell with linear index `ic`. This function uses the
+SOLPS grid generation algorithm to determine the neighbours. However, SOLPS geometry
+file actually provides the neighbor indices directly. Thus, this function is not used
+in the code anywhere but is kept here for reference.
 """
-function neighbour_inds(ic; nx, ny, leftcut, rightcut, topcut, bottomcut)
+function neighbour_inds(
+    ic::Int;
+    nx::Int,
+    ny::Int,
+    leftcut::Int,
+    rightcut::Int,
+    topcut::Int,
+    bottomcut::Int,
+)::Vector{Int}
     ix, iy = ctoxy(ic; nx=nx)
     neighbour_x_inds = []
     neighbour_y_inds = []
@@ -125,7 +168,7 @@ function neighbour_inds(ic; nx, ny, leftcut, rightcut, topcut, bottomcut)
         append!(neighbour_y_inds, iy + 1)
     end
 
-    neighbour_inds = []
+    neighbour_inds = Vector{Int}(undef, 0)
     for x_ind ∈ neighbour_x_inds
         append!(neighbour_inds, xytoc(x_ind, iy; nx=nx))
     end
@@ -136,22 +179,28 @@ function neighbour_inds(ic; nx, ny, leftcut, rightcut, topcut, bottomcut)
 end
 
 """
-    get_neighbour_inds(ic, gmtry, it)
+    get_neighbour_inds(
+        ic::Int,
+        gmtry::Dict{String, Dict{String, Any}},
+        it::Int,
+    )::Vector{Int}
 
-Returns indices of neighbours of cell with linear index ic. This function uses the SOLPS
-geometry file to determine the neighbours by using matrices named as leftix, rightix,
-topix, bottomix, leftiy, rightiy, topiy, and bottomiy.
+Returns indices of neighbours of cell with linear index `ic`. This function uses the
+parsed SOLPS geometry file to determine the neighbours by using matrices named as
+leftix, rightix, topix, bottomix, leftiy, rightiy, topiy, and bottomiy.
 """
-function get_neighbour_inds(ic, gmtry, it)
+function get_neighbour_inds(
+    ic::Int,
+    gmtry::Dict{String, Dict{String, Any}},
+    it::Int,
+)::Vector{Int}
     nx = gmtry["dim"]["nx"]
     ny = gmtry["dim"]["ny"]
     ix, iy = ctoxy(ic; nx=nx)
-    neighbour_inds = []
-    # println(ix, ", ", iy)
+    neighbour_inds = Vector{Int}(undef, 0)
     for neighbour ∈ ["left", "right", "top", "bottom"]
         nix = gmtry["data"][neighbour*"ix"][it, iy, ix] + 2
         niy = gmtry["data"][neighbour*"iy"][it, iy, ix] + 2
-        # println(neighbour, ": ", nix, ", ", niy)
         if 1 ≤ nix ≤ nx && 1 ≤ niy ≤ ny
             append!(neighbour_inds, xytoc(nix, niy; nx=nx))
         end
@@ -160,12 +209,22 @@ function get_neighbour_inds(ic, gmtry, it)
 end
 
 """
-    attach_neightbours(cells, edges, gmtry, it)
+    attach_neightbours!(
+        cells::IMASDD.IDSvector{IMASDD.edge_profiles__grid_ggd___space___objects_per_dimension___object{T}},
+        edges::IMASDD.IDSvector{IMASDD.edge_profiles__grid_ggd___space___objects_per_dimension___object{T}},
+        gmtry::Dict{String, Dict{String, Any}},
+        it::Int,
+    ) where {T}
 
 This function attaches neighbours to each boundary of each cell and each boundary of
-each edge. This function uses the SOLPS geometry file to determine the neighbours.
+each edge using the parsed SOLPS geometry file.
 """
-function attach_neightbours(cells, edges, gmtry, it)
+function attach_neightbours!(
+    cells::edges_nodes_type,
+    edges::edges_nodes_type,
+    gmtry::Dict{String, Dict{String, Any}},
+    it::Int,
+)
     for (ic, cell) ∈ enumerate(cells)
         for neighbour_ind ∈ get_neighbour_inds(ic, gmtry, it)
             for boundary ∈ cell.boundary
