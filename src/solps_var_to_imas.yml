@@ -13,8 +13,8 @@
 
 # --------
 # Page 219
-na: ["ion[:].density[:].values", 5]
-ua: ["ion[:].velocity[:].parallel", 5]
+# na: ["ion[:].density[:].values", 5] # These are not correct as density can be provided over different states of same ion
+# ua: ["ion[:].velocity[:].parallel", 5] # These are not correct as velocity can be provided over different states of same ion
 te: ["electrons.temperature[:].values", 5]
 ti: ["t_i_average[:].values", 5] # atom(ion) temperature is averaged over all species, so only store in t_i_average
 po: ["phi_potential[:].values", 5]

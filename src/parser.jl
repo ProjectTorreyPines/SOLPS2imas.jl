@@ -116,6 +116,7 @@ function read_b2_output(filename)
         if startswith(l, "*cf:")
             j = 1  # Reset intra-array element counter
             _, arraytype, arraysize, tag = split(l)
+            tag = String(tag)
             arraysize = parse(Int, arraysize)
             if arraytype == "char"
                 contents[tag] = ""

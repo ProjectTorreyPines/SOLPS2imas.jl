@@ -114,7 +114,7 @@ chosen_tri_edge_order = [(1, (1, 2)),
 """
     solps2imas(
     b2gmtry::String,
-    b2output::String;
+    b2output::String="";
     gsdesc::String=default_gsdesc,
     b2mn::String="",
     fort::Tuple{String, String, String}=("", "", ""),
@@ -133,7 +133,7 @@ Returns data in IMASDD.dd datastructure.
 """
 function solps2imas(
     b2gmtry::String,
-    b2output::String;
+    b2output::String="";
     gsdesc::String=default_gsdesc,
     b2mn::String="",
     fort::Tuple{String, String, String}=("", "", ""),
@@ -658,6 +658,10 @@ function solps2imas(
             subset_do(setdiff, subset_trinodes.element, subset_b25nodes.element)
         subset_extfaces.element =
             subset_do(setdiff, subset_trifaces.element, subset_b25faces.element)
+    end
+
+    if b2output == ""
+        return ids
     end
 
     # Filling data in ggd now
