@@ -34,6 +34,7 @@ Or, in julia REPL:
 ```julia
 julia> using Pkg;
 julia> Pkg.add(; url="https://github.com/ProjectTorreyPines/IMASDD.jl.git");
+julia> Pkg.add(; url="https://github.com/ProjectTorreyPines/GGDUtils.jl.git");
 julia> Pkg.add(; url="https://github.com/ProjectTorreyPines/SOLPS2IMAS.jl.git");
 julia> Pkg.instantiate()
 ```

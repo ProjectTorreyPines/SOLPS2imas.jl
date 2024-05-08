@@ -3,6 +3,10 @@ name: Test
 on:
   push:
     branches: ["master", "dev", "autotest"]
+    paths:
+      - '.github/workflows/test.yml'
+      - 'src/'
+      - 'test/'
   pull_request:
     branches: ["master", "dev"]
 jobs:
