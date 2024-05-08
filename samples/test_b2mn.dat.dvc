@@ -1,0 +1,12 @@
+md5: 0cbec9bc1912c9cf56fce7b0edeb4a0e
+frozen: true
+deps:
+- path: mock_test_data/test_b2mn.dat
+  repo:
+    url: git@github.com:ProjectTorreyPines/SOLPSTestSamples.git
+    rev_lock: c3e4d582b7fe9f6df358f143ec4bd48d9c068348
+outs:
+- md5: c93d7bb916f673d4d18ccbc10de55455
+  size: 3169
+  hash: md5
+  path: test_b2mn.dat

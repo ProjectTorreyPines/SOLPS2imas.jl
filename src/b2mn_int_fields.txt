@@ -1,0 +1,133 @@
+# List of b2mn.dat fields that hold integer values
+# Comments have been copied from a real b2mn.dat
+# First entry on each line should be the name of the field that must be an integer
+# Second entry is optional. If provided, the corresponding field is assumed to be a required entry and the value is the default value
+
+# IMAS info
+
+b2mndr_shot_number                           # change when b2_ual_write
+b2mndr_run_number
+
+
+# BASIC RUN PARAMETERS
+
+b2mndr_ntim
+b2mndt_nstg0                                 # nsteps (compute linearized rate coeffs)
+b2mndt_nstg1                                 # nsteps (compute linearized source)
+b2stbc_feedback                              # 1 = enable feedback BCs (default 0)
+b2mwti_jxi                                   # Index of inner midplane
+b2mwti_jxa                                   # Index of outer midplane
+b2tqna_ixref                                 # ixref for the flux-scaled transport model
+b2npmo_ion_vlct_restrict                     # if not zero v||i to 3x cs, if 2 also restrict vExB to 2x cs (default 0)
+b2npmo_vlct_diagno                           # detailed info where restriction applied
+#b2mndr_use_9pt_stencil                      # FLUID_SWITCH=1
+
+
+# PARAMETERS FOR TIME DEPENDENT RUNS
+
+b2mndt_style                          1      # If 0 call b2news (5.0/5.1), if 1 call b2news_ (5.2). Default 1, if 2 dynamic mode
+b2mndt_nstg2                                 # nsteps (compute inner iteration)
+
+
+# BASIC NUMERICS PARAMETERS
+
+b2news_guard_flows                    2      # Guard flow handling (recommended default 2)
+b2ux5p_style                          2      # 5pt stencil solver. Only use 2.
+b2ux7p_style                          2      # 7pt stencil solver. Only use 2.
+b2ux9p_style                          2      # 9pt stencil solver. Only use 2.
+b2news_poteq                          1      # Potential eq solve. 0 not solved, 2 phi = 3.1*Te/qe (1 default)
+b2tfhe_no_current                            # If 1 all currents set to zero. Must be 1 if b2news_poteq ne 1
+b2news_potit                         50      # Max iterations on the potential eq (default 50)
+b2news_potitmin                       0      # Min number of iterations (default 0)
+b2news_area_fix                       3      # Anything other than 3 is wrong (default 3)
+b2nxfx_style                          1      # Related to form of e-atom thermal force (recommend = default = 1)
+b2nxdv_style                          1      # Recommend 1 (related to friction force in guard cells)
+b2npht_style                          1      # Recommend 1 (Use SPB form of b2sihs_)
+b2nph9_style                          1      # Recommend 1 (Use SPB form of b2sihs_)
+b2nxfc_style                          1      # Recommend 1 (interpolation of flcb and cvcb)
+b2tfnb_drift_style                    1      # Recommend 1 (drift velocities at cell faces)
+b2trcl_conductive_limit               1      # Recommend 1 (apply flux limit to parallel ion and electron heat fluxes through transport coefficients)
+b2tfhe_lim_flux                       0      # Recommend 0 (Goes with b2trcl_conductive_limit 1)
+b2tfhi_lim_flux                       0      # Recommend 0 (Goes with b2trcl_conductive_limit 1)
+b2tfnb_mdf                            1      # Recommend 1 with drifts. New SPB form of particle flux. (default 0)
+b2tfhe_mdf                            1      # Recommend 1 with drifts. New SPB form of e heat flux. (default 0)
+b2tfhi_mdf                            1      # Recommend 1 with drifts. New SPB form of i heat flux. (default 0)
+b2news_no_b2sral_call                 1      # Recommend 1. 0 reproduces SOLPS4 with extra call to compute sources in b2news_.
+b2news_re_eval_prtls_fluxes           0      # If 1 recompute particle fluxes at end of b2news_. Default 0. Superceded by use_eirene.
+
+
+# COUPLING TO EIRENE
+
+b2mndr_eirene                                # Activate coupling with EIRENE -- FLUID_SWITCH=0
+eirene_repeat_first_call                     # Number of repeats on first call to eirene where flux is ignored (can be used in puff cases)
+eirene_ionizing_core                         # Add Eirene flux through core as fully stripped ions (No longer compatible with BCCON 1)
+eirene_ank_mods                       0      # (default 0) Other values activate addl scheme for particle balance
+eirene_savef30                               # Save plasma geometry for EIRENE
+eirene_savef31                               # Save plasma state file for EIRENE
+eirene_dpc_fix                        1      # Anything other than 1 is wrong
+eirene_extrap                         1      # if 0 (ITER, why), guard cell values unchanged, if 1 (default), guard cell values are calculated from neighboring real cell values
+eirene_fixmap                                # obsoleted switch?
+
+
+# OUTPUT
+
+b2mndr_savecpu
+b2mndr_b2time                                # Number of timesteps between writes to b2time.nc
+tallies_netcdf
+balance_netcdf
+b2wdat_iout
+balance_average
+b2mwti_2dwrite                        0      # Additional output to b2time.nc (default 0), -1 (LDRD), -2 (more)
+b2mndt_ntim_step_out                         # Write resduals at each Kth step in b2fstrace.
+b2mndt_moqtlv                         3      # Controls quick trace output. -1 no out, 0 once per nt, 1 once per nstg0, 2 once per nstg1, 3 (default) once per nstg2
+b2mndr_tally                                 # Number of timesteps between writes to tallies file
+b2mndr_mvnum                          0      # Number of instances of movie data (default 0)
+b2mndr_mvinc                          1      # Number of timesteps bwteen movie data (default 1)
+b2stbc_diagno                         0      # level of output in b2stbc. (0-3, default 0)
+b2ux5p_nltrsol                        2      # Output level for matrix solver (default 2)  JDL - may not be safe to turn off
+b2ux7p_nltrsol                        2      # Output level for matrix solver (default 2)
+b2ux9p_nltrsol                        2      # Output level for matrix solver (default 2)
+
+
+# NAMELIST AND INPUTFILE COUPLING
+
+b2stbc_boundary_namelist                     # Look for corresponding namelists
+b2stbr_neutrals_namelist
+b2srdt_numerics_namelist
+b2tqna_transport_namelist
+b2tqna_inputfile                             # Look for b2.transport.inputfile
+
+
+# PHYSICS PARAMETERS
+
+b2trcl_lluciani                       3      # 3 is SPB new form (recommended = default = 3)
+b2trcl_lvis21                         0      # 21 moment method for viscosities (now obsolete, default 0)
+b2trcl_lthf21                         0      # 0 is Use 21 moment for heat xfer (default 0)
+b2sigp_style                                 # 2 new form of friction, thermal force, Must set to 1 if no potential eq
+b2sihs_istyle_Joule_heating           1      # If b2sigp_style eq 2 then this has no effect, else neglect radial joule heating (default 1)
+b2sihs_style                          0      # the form of the strange electron-atom energy transfer term (default 0)
+b2tqca_model                          1      # 1 use Belescu form for chii_par, 2 is Braginskii (default 1)
+b2tqce_model                          1      # 1 use Belescu form for chie_par, 2 is Braginskii (default 1)
+b2tqce_fke_Zhdanov                    1      # 1 use Zhdanov form for electron thermal cond (recommended = default = 1)
+b2npmo_b2sifr_                        1      # 1 is correct form of friction force (default 1)
+b2sral_style                          2      # Related to particle flux with drifts (default = recommend = 2)
+b2trno_csig_an_style                  1      # If 1 zero anom contribs to parallel current terms (default 1)
+b2tlmv_style                          1      # Related to viscous flux limits (default 1)
+
+
+# FLUID NEUTRAL SETTINGS
+
+b2tlh0_flux_limit_style               2      # If 2 use SPB treatment for flux limits (default = recommend = 2)
+b2trno_flux_limit_to_dpa              1      # Flux limit to neutral contribution to dpa0 (recommend = default = 1)
+
+
+# EXTRA
+
+b2tlnl_ii                             0      # Positive means value for Coul Log, negative means abs() is lower bound (default 0)
+b2tlnl_ee                             0      # Positive means value for Coul Log, negative means abs() is lower bound (default 0)
+b2tlnl_ei                             0      # Positive means value for Coul Log, negative means abs() is lower bound (default 0)
+
+
+# Switch for mitigating b2divue that leads to crash
+
+b2tqna_new_df0                        0      # when 1, neutral diffusivity is computed according to the local CX, EI, EL rates instead of the standard form with const cross-sections (default 0)

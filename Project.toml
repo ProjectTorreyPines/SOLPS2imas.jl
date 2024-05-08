@@ -1,13 +1,14 @@
 name = "SOLPS2IMAS"
 uuid = "09becab6-0636-4c23-a92a-2b3723265c31"
 authors = ["David Eldon <eldond@fusion.gat.com>"]
-version = "0.2.0"
+version = "1.0.0"
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 GGDUtils = "b7b5e640-9b39-4803-84eb-376048795def"
+IMASDD = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
 NCDatasets = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
-OMAS = "91cfaa06-6526-4804-8666-b540b3feef2f"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"

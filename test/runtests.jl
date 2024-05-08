@@ -2,6 +2,8 @@ using SOLPS2IMAS: SOLPS2IMAS
 using Test
 using YAML: load_file as YAML_load_file
 using ArgParse: ArgParse
+using IMASDD: IMASDD
+import SOLPS2IMAS: get_grid_subset
 
 allowed_rtol = 1e-4
 
@@ -16,7 +18,13 @@ function parse_commandline()
         Dict(:help => "Test read_b2_output()",
             :action => :store_true),
         ["--solps2imas"],
-        Dict(:help => "Test solps2imas",
+        Dict(:help => "Test solps2imas (overall workflow)",
+            :action => :store_true),
+        ["--parser"],
+        Dict(:help => "Stress test file parsing (other than b2 output files)",
+            :action => :store_true),
+        ["--fort"],
+        Dict(:help => "Test triangular mesh generation from fort files",
             :action => :store_true),
     )
     args = ArgParse.parse_args(s)
@@ -75,6 +83,24 @@ if args["ind"]
     end
 end
 
+if args["parser"]
+    @testset "Test file parsing in depth" begin
+        b2mn_samples = "$(@__DIR__)/../samples/" .* [
+            "b2mn.dat",
+            "test_b2mn.dat",
+        ]
+        always_required_keys = ["b2mndr_ntim", "b2mndr_dtim"]
+        for b2mn_sample ∈ b2mn_samples
+            b2mn_data = SOLPS2IMAS.read_b2mn_output(b2mn_sample)
+            for ark ∈ always_required_keys
+                @test ark in keys(b2mn_data)
+            end
+            b2mn_json = IMASDD.JSON.parsefile(b2mn_sample * ".json")
+            @test b2mn_json == b2mn_data
+        end
+    end
+end
+
 if args["b2"]
     @testset "Test read_b2_output" begin
         contents = SOLPS2IMAS.read_b2_output("$(@__DIR__)/../samples/b2fstate")
@@ -118,15 +144,14 @@ if args["b2"]
 end
 
 if args["solps2imas"]
-    @testset "Test solps2imas()" begin
+    @testset "Test solps2imas() (overall workflow)" begin
         b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
         b2output = "$(@__DIR__)/../samples/b2time.nc"
-        gsdesc = "$(@__DIR__)/../samples/gridspacedesc.yml"
         b2mn = "$(@__DIR__)/../samples/b2mn.dat"
         b2t = SOLPS2IMAS.read_b2_output(b2output)
         nx = b2t["dim"]["nx"]
         print("solps2imas() time: ")
-        @time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output, gsdesc, b2mn)
+        @time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn=b2mn)
         # Check time stamp 3 at iy=4, ix=5
         it = 3
         iy = 4
@@ -145,21 +170,21 @@ if args["solps2imas"]
         ny = gmtry["dim"]["ny"]
         cuts = Dict([(Symbol(key), gmtry["data"][key][1]) for key ∈ cut_keys])
         subset_pfrcut =
-            SOLPS2IMAS.get_grid_subset_with_index(dd.edge_profiles.grid_ggd[1], 8)
+            SOLPS2IMAS.get_grid_subset(dd.edge_profiles.grid_ggd[1], 8)
         subset_corebnd =
-            SOLPS2IMAS.get_grid_subset_with_index(dd.edge_profiles.grid_ggd[1], 15)
-        subset_separatix =
-            SOLPS2IMAS.get_grid_subset_with_index(dd.edge_profiles.grid_ggd[1], 16)
+            SOLPS2IMAS.get_grid_subset(dd.edge_profiles.grid_ggd[1], 15)
+        subset_separatrix =
+            SOLPS2IMAS.get_grid_subset(dd.edge_profiles.grid_ggd[1], 16)
         cells = dd.edge_profiles.grid_ggd[1].space[1].objects_per_dimension[3].object
         subset_pfrcut_element_list =
             [ele.object[1].index for ele ∈ subset_pfrcut.element]
         subset_corebnd_element_list =
             [ele.object[1].index for ele ∈ subset_corebnd.element]
-        subset_separatix_element_list =
-            [ele.object[1].index for ele ∈ subset_separatix.element]
+        subset_separatrix_element_list =
+            [ele.object[1].index for ele ∈ subset_separatrix.element]
         brute_force_pfrcut_list = []
         brute_force_corebnd_list = []
-        brute_force_separatix_list = []
+        brute_force_separatrix_list = []
         for iy ∈ 1:ny
             for ix ∈ 1:nx
                 for boundary_ind ∈ 1:4
@@ -169,14 +194,74 @@ if args["solps2imas"]
                         append!(brute_force_pfrcut_list, edge_ind)
                     elseif SOLPS2IMAS.is_core_boundary(; ix, iy, boundary_ind, cuts...)
                         append!(brute_force_corebnd_list, edge_ind)
-                    elseif SOLPS2IMAS.is_separatix(; iy, boundary_ind, cuts...)
-                        append!(brute_force_separatix_list, edge_ind)
+                    elseif SOLPS2IMAS.is_separatrix(; iy, boundary_ind, cuts...)
+                        append!(brute_force_separatrix_list, edge_ind)
                     end
                 end
             end
         end
         @test Set(brute_force_pfrcut_list) == Set(subset_pfrcut_element_list)
         @test Set(brute_force_corebnd_list) == Set(subset_corebnd_element_list)
-        @test Set(brute_force_separatix_list) == Set(subset_separatix_element_list)
+        @test Set(brute_force_separatrix_list) == Set(subset_separatrix_element_list)
+    end
+end
+
+if args["fort"]
+    @testset "Test triangular mesh generation from fort files" begin
+        fort = (
+            "$(@__DIR__)/../samples/fort.33",
+            "$(@__DIR__)/../samples/fort.34",
+            "$(@__DIR__)/../samples/fort.35")
+        b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
+        b2output = "$(@__DIR__)/../samples/b2time.nc"
+        b2mn = "$(@__DIR__)/../samples/b2mn.dat"
+        ids = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn=b2mn, fort=fort)
+        grid_ggd = ids.edge_profiles.grid_ggd[1]
+        space = grid_ggd.space[1]
+
+        subset_nodes = get_grid_subset(grid_ggd, 1)
+        subset_faces = get_grid_subset(grid_ggd, "faces")
+        subset_cells = get_grid_subset(grid_ggd, "cells")
+        subset_b25nodes = get_grid_subset(grid_ggd, -1)
+        subset_b25faces = get_grid_subset(grid_ggd, -2)
+        subset_b25cells = get_grid_subset(grid_ggd, -5)
+        subset_trinodes = get_grid_subset(grid_ggd, -101)
+        subset_trifaces = get_grid_subset(grid_ggd, -102)
+        subset_tricells = get_grid_subset(grid_ggd, -105)
+        subset_comnodes = get_grid_subset(grid_ggd, -201)
+        subset_comfaces = get_grid_subset(grid_ggd, -202)
+        subset_comcells = get_grid_subset(grid_ggd, -205)
+
+        nodes = grid_ggd.space[1].objects_per_dimension[1].object
+        edges = grid_ggd.space[1].objects_per_dimension[2].object
+        cells = grid_ggd.space[1].objects_per_dimension[3].object
+
+        gmtry = SOLPS2IMAS.read_b2_output(b2gmtry)
+        nx = gmtry["dim"]["nx"]
+        ny = gmtry["dim"]["ny"]
+        extra_nodes = 2 * (nx + ny)
+
+        @test length(subset_nodes.element) == length(nodes)
+        @test length(subset_faces.element) == length(edges)
+        @test length(subset_cells.element) == length(cells)
+
+        @test length(subset_b25nodes.element) ==
+              length(subset_comnodes.element) + extra_nodes
+
+        @test length(subset_trinodes.element) + extra_nodes == length(nodes)
+
+        for ele ∈ subset_tricells.element
+            tricell_ind = ele.object[1].index
+            for bnd_ind ∈ 1:3
+                if length(cells[tricell_ind].boundary[bnd_ind].neighbours) > 0
+                    common_nodes = intersect(
+                        cells[tricell_ind].nodes,
+                        cells[cells[tricell_ind].boundary[bnd_ind].neighbours[1]].nodes,
+                    )
+                    vert_no = Tuple(indexin(common_nodes, cells[tricell_ind].nodes))
+                    @test SOLPS2IMAS.chosen_tri_edge_order[bnd_ind][2] == vert_no
+                end
+            end
+        end
     end
 end

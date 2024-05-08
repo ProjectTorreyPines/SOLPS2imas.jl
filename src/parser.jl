@@ -1,4 +1,14 @@
-function read_b2time_output(filename)
+export read_b2_output, read_b2mn_output, read_b2time_output
+
+"""
+    read_b2time_output(filename::String)::Dict{String, Dict{String, Any}}
+
+Read time dependent b2 output file and return a dictionary with structure:
+Dict("dim" => Dict{String, Any}, "data" => Dict{String, Any})
+where "dim" contains the dimensions of the data and "data" contains the data itself,
+with keys corresponding to the field names.
+"""
+function read_b2time_output(filename::String)::Dict{String, Dict{String, Any}}
     dim_order = (
         "time",
         "ns",
@@ -21,8 +31,12 @@ function read_b2time_output(filename)
                 y ∈ [findfirst(x -> x == dimord, d) for dimord ∈ dim_order] if
                 y !== nothing
             ]
+            scale = 1.0
+            if "scale" in keys(ds[key].attrib)
+                scale = ds[key].attrib["scale"]
+            end
             try
-                ret_dict["data"][key] = permutedims(Array(ds[key]), permute)
+                ret_dict["data"][key] = permutedims(Array(ds[key]), permute) .* scale
             catch e
                 println("Error in reading ", key)
                 showerror(stdout, e)
@@ -33,36 +47,87 @@ function read_b2time_output(filename)
     return ret_dict
 end
 
-function read_b2mn_output(filename)
+"""
+    read_b2mn_output(filename::String)::Dict{String, Any}
+
+Read b2mn output file and store the quantities in a dictionary.
+"""
+function read_b2mn_output(filename::String)::Dict{String, Any}
+    # Get list of integer fields
+    d = readdlm("$(@__DIR__)/b2mn_int_fields.txt")
+    int_fields = d[:, 1]
+    # Get a dictionary of default defined fields
+    def_int_fields =
+        Dict(d[ii, 1] => d[ii, 2] for ii ∈ range(1, size(d)[1]) if isa(d[ii, 2], Int))
     lines = open(filename) do f
         return readlines(f)
     end
     contents = Dict()
+    found_endphy = false
     for line ∈ lines
-        if startswith(line, "'")
-            # Ignore comments and remove spaces
-            line = strip(split(line, "#")[1], [' '])
-            splits = split(line, "'"; keepempty=false)
-            contents[splits[1]] = parse(Float64, splits[end])
+        # Remove all whitespace characters (taken from Base.isspace definition)
+        line = strip(line, ['\t', '\n', '\v', '\f', '\r', ' ', '\u85', '\ua0'])
+        if !found_endphy
+            # Ignore all lines until *endphy
+            if startswith(line, "*endphy")
+                found_endphy = true
+            end
+            continue
+        else
+            if startswith(line, "'") || startswith(line, "\"")
+                # Ignore comments that can start with #, !, or *
+                line = split(line, "#"; keepempty=false)[1]
+                line = split(line, "!"; keepempty=false)[1]
+                line = split(line, "*"; keepempty=false)[1]
+                # Replace all spaces with nothing, double quotes with single quotes
+                line = replace(line, Base.isspace => "", "\"" => "'")
+                # Now split with single quotes and discard empty strings
+                name_value = split(line, "'"; keepempty=false)
+                if length(name_value) == 0 # Case where key is commented inside quotes
+                    continue
+                end
+                # Get key and value in lowercase
+                key = lowercase(name_value[1])
+                value = lowercase(name_value[2])
+                try
+                    value = parse(Float64, value)
+                catch
+                    value = parse(String, value)
+                end
+                if key in int_fields
+                    value = Int(value)
+                end
+                contents[key] = value
+            end
+        end
+    end
+    for key ∈ keys(def_int_fields)
+        if key ∉ keys(contents)
+            contents[key] = def_int_fields[key]
         end
     end
     return contents
 end
 
-function read_b2_output(filename)
+"""
+    read_b2_output(filename::String)::Dict{String, Dict{String, Any}}
+
+Read final state b2 output file (b2fstate or b2time.nc) or b2fgmtry file and return a
+dictionary with structure:
+Dict("dim" => Dict{String, Any}, "data" => Dict{String, Any})
+where "dim" contains the dimensions of the data and "data" contains the data itself,
+with keys corresponding to the field names.
+"""
+function read_b2_output(filename::String)::Dict{String, Dict{String, Any}}
     if cmp(splitext(filename)[2], ".nc") == 0
         return read_b2time_output(filename)
     end
 
-    contents = Dict()
-    array_sizes = Dict()
-    ret_dict = Dict()
+    contents = Dict{String, Any}()
+    array_sizes = Dict{String, Any}()
     lines = open(filename) do f
         return readlines(f)
     end
-    nx = 0
-    ny = 0
-    ns = 0
     tag = ""
     arraysize = 0
     arraytype = nothing
@@ -71,6 +136,7 @@ function read_b2_output(filename)
         if startswith(l, "*cf:")
             j = 1  # Reset intra-array element counter
             _, arraytype, arraysize, tag = split(l)
+            tag = String(tag)
             arraysize = parse(Int, arraysize)
             if arraytype == "char"
                 contents[tag] = ""
@@ -110,8 +176,8 @@ function read_b2_output(filename)
     end
 end
 
-function extract_geometry(gmtry)
-    ret_dict = Dict("dim" => Dict(), "data" => Dict())
+function extract_geometry(gmtry::Dict{String, Any})::Dict{String, Dict{String, Any}}
+    ret_dict = Dict("dim" => Dict{String, Any}(), "data" => Dict{String, Any}())
     ret_dict["dim"]["nx_no_guard"], ret_dict["dim"]["ny_no_guard"] = gmtry["nx,ny"]
     # includes guard cells
     nx = ret_dict["dim"]["nx"] = ret_dict["dim"]["nx_no_guard"] + 2
@@ -142,8 +208,10 @@ function extract_geometry(gmtry)
     return ret_dict
 end
 
-function extract_state_quantities(state)
-    ret_dict = Dict("dim" => Dict(), "data" => Dict())
+function extract_state_quantities(
+    state::Dict{String, Any},
+)::Dict{String, Dict{String, Any}}
+    ret_dict = Dict("dim" => Dict{String, Any}(), "data" => Dict{String, Any}())
     ret_dict["dim"]["nx_no_guard"],
     ret_dict["dim"]["ny_no_guard"],
     ret_dict["dim"]["ns"] = state["nx,ny,ns"]

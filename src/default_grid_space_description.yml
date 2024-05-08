@@ -1,15 +1,15 @@
 identifier:                                                       # grid_ggd[#].Identifier properties
-  name: Sven                                                        
+  name: Default                                                       
   index: 1
-  description: This is a grid
+  description: This is a Single Null Grid GGD 
 space:
   1:                                                              # space_number
     identifier:                                                   # grid_ggd[it].space[#].identifier properties
-      name: linear
+      name: Linear
       index: 1
-      description: Linear
+      description: This is a linear space
     geometry_type:                                                # grid_dd[#].space[#].geometry_type properties
-      name:  "standard"                                           
+      name:  Standard                                           
       index:  0                                                   # 0: standard, 1:Fourier, >1: Fourier with periodicity
       description:  "trying to hold a b2/solps mesh here"         # Verbose descripition of space
     coordinates_type:  [4, 3]                                     # r, z
