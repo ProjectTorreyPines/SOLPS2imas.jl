@@ -2,6 +2,7 @@
 
 ![Format Check](https://github.com/ProjectTorreyPines/SOLPS2IMAS.jl/actions/workflows/format_check.yml/badge.svg)
 ![Docs](https://github.com/ProjectTorreyPines/SOLPS2IMAS.jl/actions/workflows/make_docs.yml/badge.svg)
+![Tests](https://github.com/ProjectTorreyPines/SOLPS2IMAS.jl/actions/workflows/test.yml/badge.svg)
 
 Utility for loading data from existing SOLPS runs, including custom data in b2time.nc,
 from native SOLPS output format into IMAS. For installation and usage instructions, see the [online documentation](https://projecttorreypines.github.io/SOLPS2IMAS.jl/stable). For documentation on under development branch, see [dev online documentation](https://projecttorreypines.github.io/SOLPS2IMAS.jl/dev).
