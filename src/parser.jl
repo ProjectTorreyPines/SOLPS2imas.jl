@@ -257,13 +257,42 @@ function extract_state_quantities(
     return ret_dict
 end
 
-function read_b2_boundary_parameters(filename::String)::Dict{String, Dict{String, Any}}
-    ret_dict = Dict("dim" => Dict{String, Any}(), "data" => Dict{String, Any}())
+function read_b2_boundary_parameters(filename::String)::Dict{String, Any}
+    ret_dict = Dict{String, Any}()
     namelist = readnml(filename)
     println(namelist)
     nbc = namelist[:boundary][:nbc]
-    print(nbc)
+    println(nbc)
 
+    # Sources from core
+    ret_dict["power_electrons"] = 0.0  # W
+    ret_dict["power_ions"] = 0.0  # W
+  q
+    for bc ∈ 1:nbc
+        # Only consider south boundaries. South boundaries are at the interface with
+        # the core and at the PFR mesh edges. No power should come from the PFR.
+        println("bc = ", bc, ", bcchar=", namelist[:boundary][:BCCHAR][bc])
+        if namelist[:boundary][:BCCHAR][bc] == "S"
+            # ENE : electron energy condition
+            # If BCENE is 8 or 16, ENEPAR's first element will give total power across
+            # the boundary in the electron channel.
+            # For a double null case, there can be two halves of the core boundary. Just
+            # sum all south boundaries and assume someone didn't put power coming in
+            # from the PFR.
+            # See page 80 of SOLPS user manual 2022 09 13
+            println("bcene = ",namelist[:boundary][:BCENE][bc] )
+            if namelist[:boundary][:BCENE][bc] in [8, 16]
+                println("enepar =",  namelist[:boundary][:ENEPAR][bc])
+                ret_dict["power_electrons"] += namelist[:boundary][:ENEPAR][bc]
+            end
+            # ENI : ion energy condition
+            # Similar to ENE, but for ions and there are more options; now 27 should be valid.
+            # See page 81 of SOLPS user manual 2022 09 13
+            if namelist[:boundary][:BCENI][bc] in [8, 16, 27]
+                ret_dict["power_ions"] += namelist[:boundary][:ENIPAR][bc]
+            end
+        end
+    end
 
     return ret_dict
 end

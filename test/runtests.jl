@@ -12,7 +12,7 @@ allowed_rtol = 1e-4
 # to run just the ind and b2 test sets.
 
 function parse_commandline()
-    localARGS = @isdefined(newARGS) ? newARGS : ARGS
+    localARGS = @isdefined(newARGS) ? newARGS : ARGS  # Thanks https://stackoverflow.com/a/44978474/6605826
     s = ArgParse.ArgParseSettings(; description="Run tests. Default is all tests.")
 
     ArgParse.add_arg_table!(s,
@@ -278,5 +278,6 @@ if args["namelist"]
     @testset "Test parsing of namelists" begin
         testfile = "$(@__DIR__)/../samples/b2.boundary.parameters"
         boundary_params = SOLPS2IMAS.read_b2_boundary_parameters(testfile)
+        println(boundary_params)
     end
 end
