@@ -256,3 +256,10 @@ function extract_state_quantities(
     end
     return ret_dict
 end
+
+function read_b2_boundary_parameters(filename::String)::Dict{String, Dict{String, Any}}
+    ret_dict = Dict("dim" => Dict{String, Any}(), "data" => Dict{String, Any}())
+    namelist = readnml(filename)
+    println(namelist)
+    return ret_dict
+end

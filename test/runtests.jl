@@ -7,7 +7,12 @@ import SOLPS2IMAS: get_grid_subset
 
 allowed_rtol = 1e-4
 
+# To run a subset of tests while executing via > include("test/runtests.jl"), define newARGS. For example:
+#   newARGS = String["--ind", "--b2]
+# to run just the ind and b2 test sets.
+
 function parse_commandline()
+    localARGS = @isdefined(newARGS) ? newARGS : ARGS
     s = ArgParse.ArgParseSettings(; description="Run tests. Default is all tests.")
 
     ArgParse.add_arg_table!(s,
@@ -27,7 +32,7 @@ function parse_commandline()
         Dict(:help => "Test triangular mesh generation from fort files",
             :action => :store_true),
     )
-    args = ArgParse.parse_args(s)
+    args = ArgParse.parse_args(localARGS, s)
     if !any(values(args)) # If no flags are set, run all tests
         for k ∈ keys(args)
             args[k] = true
