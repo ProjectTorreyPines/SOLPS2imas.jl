@@ -7,6 +7,9 @@ Read time dependent b2 output file and return a dictionary with structure:
 Dict("dim" => Dict{String, Any}, "data" => Dict{String, Any})
 where "dim" contains the dimensions of the data and "data" contains the data itself,
 with keys corresponding to the field names.
+
+Supported SOLPS files as input via filename:
+- b2time.nc
 """
 function read_b2time_output(filename::String)::Dict{String, Dict{String, Any}}
     dim_order = (
@@ -51,6 +54,9 @@ end
     read_b2mn_output(filename::String)::Dict{String, Any}
 
 Read b2mn output file and store the quantities in a dictionary.
+
+Supported SOLPS files as input via filename:
+- b2mn.dat
 """
 function read_b2mn_output(filename::String)::Dict{String, Any}
     # Get list of integer fields
@@ -117,6 +123,12 @@ dictionary with structure:
 Dict("dim" => Dict{String, Any}, "data" => Dict{String, Any})
 where "dim" contains the dimensions of the data and "data" contains the data itself,
 with keys corresponding to the field names.
+
+Supported SOLPS files as input via filename:
+- b2fstate
+- b2fstati
+- b2time.nc
+- b2fgmtry
 """
 function read_b2_output(filename::String)::Dict{String, Dict{String, Any}}
     if cmp(splitext(filename)[2], ".nc") == 0
