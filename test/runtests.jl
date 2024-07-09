@@ -3,7 +3,7 @@ using Test
 using YAML: load_file as YAML_load_file
 using ArgParse: ArgParse
 using IMASDD: IMASDD
-import SOLPS2IMAS: get_grid_subset
+import SOLPS2IMAS: get_grid_subset, read_b2_boundary_parameters
 
 allowed_rtol = 1e-4
 
@@ -30,6 +30,9 @@ function parse_commandline()
             :action => :store_true),
         ["--fort"],
         Dict(:help => "Test triangular mesh generation from fort files",
+            :action => :store_true),
+        ["--namelist"],
+        Dict(:help => "Test parsing of namelists",
             :action => :store_true),
     )
     args = ArgParse.parse_args(localARGS, s)
@@ -268,5 +271,12 @@ if args["fort"]
                 end
             end
         end
+    end
+end
+
+if args["namelist"]
+    @testset "Test parsing of namelists" begin
+        testfile = "$(@__DIR__)/../samples/b2.boundary.parameters"
+        boundary_params = SOLPS2IMAS.read_b2_boundary_parameters(testfile)
     end
 end
