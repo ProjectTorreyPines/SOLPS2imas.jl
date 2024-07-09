@@ -262,16 +262,18 @@ function read_b2_boundary_parameters(filename::String)::Dict{String, Any}
     namelist = readnml(filename)
     println(namelist)
     nbc = namelist[:boundary][:nbc]
-    println(nbc)
 
     # Sources from core
     ret_dict["power_electrons"] = 0.0  # W
     ret_dict["power_ions"] = 0.0  # W
-  q
+    ret_dict["number_of_boundaries"] = nbc
+    ret_dict["number_of_core_source_boundaries"] = 0
+
     for bc ∈ 1:nbc
         # Only consider south boundaries. South boundaries are at the interface with
         # the core and at the PFR mesh edges. No power should come from the PFR.
         println("bc = ", bc, ", bcchar=", namelist[:boundary][:BCCHAR][bc])
+        core_source = false
         if namelist[:boundary][:BCCHAR][bc] == "S"
             # ENE : electron energy condition
             # If BCENE is 8 or 16, ENEPAR's first element will give total power across
@@ -280,16 +282,45 @@ function read_b2_boundary_parameters(filename::String)::Dict{String, Any}
             # sum all south boundaries and assume someone didn't put power coming in
             # from the PFR.
             # See page 80 of SOLPS user manual 2022 09 13
-            println("bcene = ",namelist[:boundary][:BCENE][bc] )
-            if namelist[:boundary][:BCENE][bc] in [8, 16]
-                println("enepar =",  namelist[:boundary][:ENEPAR][bc])
-                ret_dict["power_electrons"] += namelist[:boundary][:ENEPAR][bc]
+            bcene = namelist[:boundary][:BCENE][bc]
+            bcene_power = [8, 16]
+            bcene_pfr_appropriate = [2, 22]
+            handled_south_bcene = [bcene_power; bcene_pfr_appropriate]
+            if bcene in bcene_power
+                enepar = namelist[:boundary][:ENEPAR][bc]
+                ret_dict["power_electrons"] += enepar
+                if enepar != 0
+                    core_source = true
+                end
+            elseif bcene in bcene_pfr_appropriate
+                nothing
+            elseif !(bcene in handled_south_bcene)
+                 throw(ArgumentError("BCENE type " * repr(bcene) * " is not handled. Acceptable types = " * repr(handled_south_bcene)))
             end
+
             # ENI : ion energy condition
             # Similar to ENE, but for ions and there are more options; now 27 should be valid.
             # See page 81 of SOLPS user manual 2022 09 13
-            if namelist[:boundary][:BCENI][bc] in [8, 16, 27]
-                ret_dict["power_ions"] += namelist[:boundary][:ENIPAR][bc]
+            bceni = namelist[:boundary][:BCENI][bc]
+            bceni_power = [8, 16, 27]
+            bceni_pfr_appropriate = [2, 22]
+            handled_south_bceni = [bceni_power; bceni_pfr_appropriate]
+            if bceni in bceni_power
+                enipar = namelist[:boundary][:ENIPAR][bc]
+                ret_dict["power_ions"] += enipar
+                if enipar != 0
+                    core_source = true
+                end
+            elseif bceni in bceni_pfr_appropriate
+                nothing
+            elseif !(bceni in handled_south_bceni)
+                 throw(ArgumentError("BCENI type " * repr(bceni) * " is not handled. Acceptable types = " * repr(handled_south_bceni)))
+            end
+
+            #
+
+            if core_source
+                ret_dict["number_of_core_source_boundaries"] += 1
             end
         end
     end
