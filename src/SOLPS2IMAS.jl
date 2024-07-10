@@ -110,10 +110,9 @@ chosen_tri_edge_order = [(1, (1, 2)),
     (2, (2, 3)),
     (3, (1, 3))]
 
-
 function load_summary_data(
     ids::IMASDD.dd,
-    b2_parameters::Tuple{String, String, String, String,}=("", "", "", "");
+    b2_parameters::Tuple{String, String, String, String}=("", "", "", "");
     eqdsk::String="",
 )
     println("starting up whooo")
@@ -138,16 +137,16 @@ function load_summary_data(
     map = YAML_load_file("$(@__DIR__)/solps_param_to_imas_summary.yml")
     println("map = $map")
     base_actuators = ["ec", "ic", "lh", "nbi"]
-    launched_actuators = ["launched_"*a for a in base_actuators]
+    launched_actuators = ["launched_" * a for a ∈ base_actuators]
     all_actuators = [["additional"]; base_actuators; launched_actuators]
     println("all actuators = ", all_actuators)
     hcd = ids.summary.heating_current_drive
-    for ei in ["electron", "ion"]
+    for ei ∈ ["electron", "ion"]
         power = bdry_info["power_$(ei)s"] .+ ids.summary.time * 0.0
         println("  now serving: $ei. Power = $power W")
         # Handle actuators in heating and current drive
-        println("submap = ",  map["$(ei)_power_destination"])
-        for actuator in all_actuators
+        println("submap = ", map["$(ei)_power_destination"])
+        for actuator ∈ all_actuators
             m = map["$(ei)_power_destination"][actuator]
             println("actuator = $actuator, m = $m")
             if (m !== nothing) && (m !== "nothing")
@@ -203,7 +202,7 @@ function solps2imas(
     b2mn::String="",
     fort::Tuple{String, String, String}=("", "", ""),
     fort_tol::Float64=1e-6,
-    b2_parameters::Tuple{String, String, String, String,}=("", "", "", ""),
+    b2_parameters::Tuple{String, String, String, String}=("", "", "", ""),
     eqdsk::String="",
     load_bb::Bool=false,
 )::IMASDD.dd

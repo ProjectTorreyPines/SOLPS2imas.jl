@@ -282,7 +282,8 @@ if args["namelist"]
         println(boundary_params)
         @test boundary_params["power_electrons"] > 0.0
         @test boundary_params["power_ions"] > 0.0
-        @test boundary_params["number_of_boundaries"] > boundary_params["number_of_core_source_boundaries"]
+        @test boundary_params["number_of_boundaries"] >
+              boundary_params["number_of_core_source_boundaries"]
 
         # Using parameters namelist to populate summary data
         ids = IMASDD.dd()

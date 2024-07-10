@@ -9,7 +9,8 @@ where "dim" contains the dimensions of the data and "data" contains the data its
 with keys corresponding to the field names.
 
 Supported SOLPS files as input via filename:
-- b2time.nc
+
+  - b2time.nc
 """
 function read_b2time_output(filename::String)::Dict{String, Dict{String, Any}}
     dim_order = (
@@ -56,7 +57,8 @@ end
 Read b2mn output file and store the quantities in a dictionary.
 
 Supported SOLPS files as input via filename:
-- b2mn.dat
+
+  - b2mn.dat
 """
 function read_b2mn_output(filename::String)::Dict{String, Any}
     # Get list of integer fields
@@ -125,10 +127,11 @@ where "dim" contains the dimensions of the data and "data" contains the data its
 with keys corresponding to the field names.
 
 Supported SOLPS files as input via filename:
-- b2fstate
-- b2fstati
-- b2time.nc
-- b2fgmtry
+
+  - b2fstate
+  - b2fstati
+  - b2time.nc
+  - b2fgmtry
 """
 function read_b2_output(filename::String)::Dict{String, Dict{String, Any}}
     if cmp(splitext(filename)[2], ".nc") == 0
@@ -295,7 +298,13 @@ function read_b2_boundary_parameters(filename::String)::Dict{String, Any}
             elseif bcene in bcene_pfr_appropriate
                 nothing
             elseif !(bcene in handled_south_bcene)
-                 throw(ArgumentError("BCENE type " * repr(bcene) * " is not handled. Acceptable types = " * repr(handled_south_bcene)))
+                throw(
+                    ArgumentError(
+                        "BCENE type " * repr(bcene) *
+                        " is not handled. Acceptable types = " *
+                        repr(handled_south_bcene),
+                    ),
+                )
             end
 
             # ENI : ion energy condition
@@ -314,7 +323,13 @@ function read_b2_boundary_parameters(filename::String)::Dict{String, Any}
             elseif bceni in bceni_pfr_appropriate
                 nothing
             elseif !(bceni in handled_south_bceni)
-                 throw(ArgumentError("BCENI type " * repr(bceni) * " is not handled. Acceptable types = " * repr(handled_south_bceni)))
+                throw(
+                    ArgumentError(
+                        "BCENI type " * repr(bceni) *
+                        " is not handled. Acceptable types = " *
+                        repr(handled_south_bceni),
+                    ),
+                )
             end
 
             #
