@@ -788,10 +788,11 @@ function solps2imas(
             end
         end
     end
-    return ids
 
     # Add summary data from b2.*.parameters files and eqdsk
-    load_summary_data(ids, b2_parameters,eqdsk)
+    load_summary_data(ids, b2_parameters, eqdsk)
+
+    return ids
 end
 
 end # module SOLPS2IMAS
