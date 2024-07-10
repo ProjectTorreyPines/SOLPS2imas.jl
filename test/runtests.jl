@@ -276,8 +276,17 @@ end
 
 if args["namelist"]
     @testset "Test parsing of namelists" begin
+        # Basic parameters namelist parsing
         testfile = "$(@__DIR__)/../samples/b2.boundary.parameters"
         boundary_params = SOLPS2IMAS.read_b2_boundary_parameters(testfile)
         println(boundary_params)
+        @test boundary_params["power_electrons"] > 0.0
+        @test boundary_params["power_ions"] > 0.0
+        @test boundary_params["number_of_boundaries"] > boundary_params["number_of_core_source_boundaries"]
+
+        # Using parameters namelist to populate summary data
+        ids = IMASDD.dd()
+        SOLPS2IMAS.load_summary_data(ids, (testfile, "", "", ""))
+        @test !(ismissing(ids.summary.heating_current_drive.power_ec, :value))
     end
 end
