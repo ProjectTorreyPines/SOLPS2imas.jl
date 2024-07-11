@@ -110,15 +110,22 @@ chosen_tri_edge_order = [(1, (1, 2)),
     (2, (2, 3)),
     (3, (1, 3))]
 
-function load_summary_data(
+"""
+    load_summary_data!(
+        ids::IMASDD.dd,
+        b2_parameters::Tuple{String, String, String, String}=("", "", "", "");
+    )
+
+Loads high level shot summary data into the summary IDS after reading and interpreting
+SOLPS input files, such as b2.*.parameters.
+"""
+function load_summary_data!(
     ids::IMASDD.dd,
     b2_parameters::Tuple{String, String, String, String}=("", "", "", "");
-    eqdsk::String="",
 )
     println("starting up whooo")
     println("got inputs:")
     println("  b2_parameters = ", b2_parameters)
-    println("  eqdsk = ", eqdsk)
     bdry_info = nothing
     for b2param ∈ b2_parameters
         println("checking filename: ", b2param)
@@ -184,7 +191,6 @@ end
         fort::Tuple{String, String, String}=("", "", ""),
         fort_tol::Float64=1e-6,
         b2_parameters::Tuple{String, String, String, String,}=("", "", "", ""),
-        eqdsk::String="",
         load_bb::Bool=false,
     )::IMASDD.dd
 
@@ -203,7 +209,6 @@ function solps2imas(
     fort::Tuple{String, String, String}=("", "", ""),
     fort_tol::Float64=1e-6,
     b2_parameters::Tuple{String, String, String, String}=("", "", "", ""),
-    eqdsk::String="",
     load_bb::Bool=false,
 )::IMASDD.dd
     # Initialize an empty IMAS data structre
@@ -788,8 +793,8 @@ function solps2imas(
         end
     end
 
-    # Add summary data from b2.*.parameters files and eqdsk
-    load_summary_data(ids, b2_parameters, eqdsk)
+    # Add summary data from b2.*.parameters files
+    load_summary_data!(ids, b2_parameters)
 
     return ids
 end
