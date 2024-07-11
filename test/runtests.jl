@@ -287,7 +287,7 @@ if args["namelist"]
 
         # Using parameters namelist to populate summary data
         ids = IMASDD.dd()
-        SOLPS2IMAS.load_summary_data(ids, (testfile, "", "", ""))
+        SOLPS2IMAS.load_summary_data!(ids, (testfile, "", "", ""))
         @test !(ismissing(ids.summary.heating_current_drive.power_ec, :value))
     end
 end
