@@ -42,7 +42,7 @@ jobs:
         id: extract_branch
       - name: Install dependencies
         run: |
-          julia --project=. -e 'using Pkg; Pkg.rm(["IMASDD", "GGDUtils"]); Pkg.add(; url="https://github.com/ProjectTorreyPines/IMASDD.jl.git"); Pkg.add(; url="https://github.com/ProjectTorreyPines/GGDUtils.jl.git", rev="${{ steps.extract_branch.outputs.branch }}")'
+          julia --project=. -e 'using Pkg; Pkg.rm(["IMASDD", "GGDUtils", "Fortran90Namelists"]); Pkg.add(; url="https://github.com/ProjectTorreyPines/IMASDD.jl.git"); Pkg.add(; url="https://github.com/ProjectTorreyPines/GGDUtils.jl.git", rev="${{ steps.extract_branch.outputs.branch }}"); Pkg.add(; url="https://github.com/ProjectTorreyPines/Fortran90Namelists.jl.git");'
       - uses: julia-actions/julia-runtest@v1
       # Not set up yet
       # - uses: julia-actions/julia-processcoverage@v1
