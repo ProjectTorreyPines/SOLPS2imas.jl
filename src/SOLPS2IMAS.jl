@@ -9,7 +9,7 @@ import GGDUtils: add_subset_element!, get_grid_subset, get_subset_boundary,
     get_subset_space, subset_do, deepcopy_subset
 using Fortran90Namelists
 
-export solps2imas
+export solps2imas, load_summary_data!
 
 include("parser.jl")
 
