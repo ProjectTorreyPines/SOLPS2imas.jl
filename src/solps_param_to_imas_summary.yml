@@ -1,0 +1,39 @@
+# List of conversion from SOLPS parameter data (boundary conditions, inputs, ...)
+# to data in the summary IDS. For GGD data from the statefile/outputs, use
+# solps_var_to_imas.yml.
+
+# read_b2_boundary_parameters in parser.jl will find out power_electrons and power_ions,
+# the input power flowing into the SOLPS mesh from the core in the electron and ion
+# power channels. Where do these go?
+# For power actuators, assign numbers to either the base actuator or the _launched version.
+# ec means electron cyclotron heating power absorbed by the plasma, whereas ec_launched
+# means all power injected, including that which is reflected out and not abosrbed.
+# All of these except for "fusion" go in
+#   ids.summary.heating_current_drive.power_*.value, where * is ec, ic, lh, nbi, or additional
+# fusion goes in ids.summary.fusion.power.value
+electron_power_destination: {
+  'additional': 0.0,
+  'fusion':, 0.0,
+  'ec': 1.0,
+  'ic': 0.0,
+  'lh': 0.0,
+  'nbi': 0.0,
+  'launched_ec': nothing,
+  'launched_ic': nothing,
+  'launched_lh': nothing,
+  'launched_nbi': nothing,
+}
+
+# Same as for electrons but now controlling where ion power gets assigned.
+ion_power_destination: {
+  'additional': 0.0,
+  'fusion':, 0.0,
+  'ec': 0.0,
+  'ic': 1.0,
+  'lh': 0.0,
+  'nbi': 0.0,
+  'launched_ec': nothing,
+  'launched_ic': nothing,
+  'launched_lh': nothing,
+  'launched_nbi': nothing,
+}

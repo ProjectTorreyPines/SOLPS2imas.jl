@@ -3,11 +3,16 @@ using Test
 using YAML: load_file as YAML_load_file
 using ArgParse: ArgParse
 using IMASDD: IMASDD
-import SOLPS2IMAS: get_grid_subset
+import SOLPS2IMAS: get_grid_subset, read_b2_boundary_parameters
 
 allowed_rtol = 1e-4
 
+# To run a subset of tests while executing via > include("test/runtests.jl"), define newARGS. For example:
+#   newARGS = String["--ind", "--b2]
+# to run just the ind and b2 test sets.
+
 function parse_commandline()
+    localARGS = @isdefined(newARGS) ? newARGS : ARGS  # Thanks https://stackoverflow.com/a/44978474/6605826
     s = ArgParse.ArgParseSettings(; description="Run tests. Default is all tests.")
 
     ArgParse.add_arg_table!(s,
@@ -26,8 +31,11 @@ function parse_commandline()
         ["--fort"],
         Dict(:help => "Test triangular mesh generation from fort files",
             :action => :store_true),
+        ["--namelist"],
+        Dict(:help => "Test parsing of namelists",
+            :action => :store_true),
     )
-    args = ArgParse.parse_args(s)
+    args = ArgParse.parse_args(localARGS, s)
     if !any(values(args)) # If no flags are set, run all tests
         for k ∈ keys(args)
             args[k] = true
@@ -263,5 +271,23 @@ if args["fort"]
                 end
             end
         end
+    end
+end
+
+if args["namelist"]
+    @testset "Test parsing of namelists" begin
+        # Basic parameters namelist parsing
+        testfile = "$(@__DIR__)/../samples/b2.boundary.parameters"
+        boundary_params = SOLPS2IMAS.read_b2_boundary_parameters(testfile)
+        println(boundary_params)
+        @test boundary_params["power_electrons"] > 0.0
+        @test boundary_params["power_ions"] > 0.0
+        @test boundary_params["number_of_boundaries"] >
+              boundary_params["number_of_core_source_boundaries"]
+
+        # Using parameters namelist to populate summary data
+        ids = IMASDD.dd()
+        SOLPS2IMAS.load_summary_data!(ids, (testfile, "", "", ""))
+        @test !(ismissing(ids.summary.heating_current_drive.power_ec, :value))
     end
 end

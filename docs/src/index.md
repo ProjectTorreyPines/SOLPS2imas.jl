@@ -41,10 +41,16 @@ julia> Pkg.instantiate()
 
 ## solps2imas
 
-The main function of this module is solps2imas which reads solps input and output files and creates an IMAS IDS instance.
+The main function of this module is solps2imas which reads SOLPS input and output files and creates an IMAS IDS instance.
 
 ```@docs
 solps2imas
+```
+
+The main solps2imas feature can be called to load everything. However, some special cases may demand only subsets of the data. In these cases, it is possible to call subcomponents of the SOLPS to IMAS data transfer feature by using these functions:
+
+```@docs
+load_summary_data!
 ```
 
 ## Parsing tools
@@ -54,6 +60,7 @@ This module uses some parsing functions which can be used standalone as well
 read_b2_output
 read_b2mn_output
 read_b2time_output
+read_b2_boundary_parameters
 ```
 
 ## SOLPS Mesh Tools

@@ -7,8 +7,9 @@ using YAML: load_file as YAML_load_file
 using DelimitedFiles: readdlm
 import GGDUtils: add_subset_element!, get_grid_subset, get_subset_boundary,
     get_subset_space, subset_do, deepcopy_subset
+using Fortran90Namelists
 
-export solps2imas
+export solps2imas, load_summary_data!
 
 include("parser.jl")
 
@@ -110,6 +111,64 @@ chosen_tri_edge_order = [(1, (1, 2)),
     (3, (1, 3))]
 
 """
+    load_summary_data!(
+        ids::IMASDD.dd,
+        b2_parameters::Tuple{String, String, String, String}=("", "", "", "");
+    )
+
+Loads high level shot summary data into the summary IDS after reading and interpreting
+SOLPS input files, such as b2.*.parameters.
+"""
+function load_summary_data!(
+    ids::IMASDD.dd,
+    b2_parameters::Tuple{String, String, String, String}=("", "", "", "");
+)
+    bdry_info = nothing
+    for b2param ∈ b2_parameters
+        if occursin("b2.boundary.parameters", b2param)
+            bdry_info = read_b2_boundary_parameters(b2param)
+            break
+        end
+    end
+    if bdry_info == nothing
+        return
+    end
+    if ismissing(ids.summary, :time)
+        ids.summary.time = [0.0]
+    end
+    map = YAML_load_file("$(@__DIR__)/solps_param_to_imas_summary.yml")
+    base_actuators = ["ec", "ic", "lh", "nbi"]
+    launched_actuators = ["launched_" * a for a ∈ base_actuators]
+    all_actuators = [["additional"]; base_actuators; launched_actuators]
+    hcd = ids.summary.heating_current_drive
+    for ei ∈ ["electron", "ion"]
+        power = bdry_info["power_$(ei)s"] .+ ids.summary.time * 0.0
+        # Handle actuators in heating and current drive
+        for actuator ∈ all_actuators
+            m = map["$(ei)_power_destination"][actuator]
+            if (m !== nothing) && (m !== "nothing")
+                tag = Symbol("power_$(actuator)")
+                hcd_act = getproperty(hcd, tag)
+                if ismissing(hcd_act, Symbol("value"))
+                    hcd_act.source = "Inferred from SOLPS input deck"
+                    hcd_act.value = ids.summary.time * 0.0
+                end
+                hcd_act.value += m .* power
+            end
+        end
+        # Special for fusion power since it's outside of the rest
+        m = map["$(ei)_power_destination"]["fusion"]
+        if (m !== nothing) && (m !== "nothing")
+            ids.summary.fusion.power.source = "Inferred from SOLPS input deck"
+            if ismissing(ids.summary.fusion.power, Symbol("value"))
+                ids.summary.fusion.power.value = ids.summary.time * 0.0
+            end
+            ids.summary.fusion.power.value .+= m * power
+        end
+    end
+end
+
+"""
     solps2imas(
         b2gmtry::String,
         b2output::String="";
@@ -117,6 +176,7 @@ chosen_tri_edge_order = [(1, (1, 2)),
         b2mn::String="",
         fort::Tuple{String, String, String}=("", "", ""),
         fort_tol::Float64=1e-6,
+        b2_parameters::Tuple{String, String, String, String,}=("", "", "", ""),
         load_bb::Bool=false,
     )::IMASDD.dd
 
@@ -125,6 +185,7 @@ Main function of the module. Takes in a geometry file and an (optional) output f
 filename to equivalent YAML file. Additionally, EIRENE `fort` files can be provided as
 tuple of 3 filenames consisting fort.33, fort.34, and fort.35 files. The grids in these
 files are matched with SOLPS grid with a tolerance of `fort_tol` (defaults to 1e-6).
+Further settings can be loaded from b2.*.parameters files and equilibrium files.
 """
 function solps2imas(
     b2gmtry::String,
@@ -133,6 +194,7 @@ function solps2imas(
     b2mn::String="",
     fort::Tuple{String, String, String}=("", "", ""),
     fort_tol::Float64=1e-6,
+    b2_parameters::Tuple{String, String, String, String}=("", "", "", ""),
     load_bb::Bool=false,
 )::IMASDD.dd
     # Initialize an empty IMAS data structre
@@ -716,6 +778,10 @@ function solps2imas(
             end
         end
     end
+
+    # Add summary data from b2.*.parameters files
+    load_summary_data!(ids, b2_parameters)
+
     return ids
 end
 
