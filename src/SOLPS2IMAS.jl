@@ -123,15 +123,10 @@ function load_summary_data!(
     ids::IMASDD.dd,
     b2_parameters::Tuple{String, String, String, String}=("", "", "", "");
 )
-    println("starting up whooo")
-    println("got inputs:")
-    println("  b2_parameters = ", b2_parameters)
     bdry_info = nothing
     for b2param ∈ b2_parameters
-        println("checking filename: ", b2param)
         if occursin("b2.boundary.parameters", b2param)
             bdry_info = read_b2_boundary_parameters(b2param)
-            println("got it")
             break
         end
     end
@@ -142,27 +137,19 @@ function load_summary_data!(
         ids.summary.time = [0.0]
     end
     map = YAML_load_file("$(@__DIR__)/solps_param_to_imas_summary.yml")
-    println("map = $map")
     base_actuators = ["ec", "ic", "lh", "nbi"]
     launched_actuators = ["launched_" * a for a ∈ base_actuators]
     all_actuators = [["additional"]; base_actuators; launched_actuators]
-    println("all actuators = ", all_actuators)
     hcd = ids.summary.heating_current_drive
     for ei ∈ ["electron", "ion"]
         power = bdry_info["power_$(ei)s"] .+ ids.summary.time * 0.0
-        println("  now serving: $ei. Power = $power W")
         # Handle actuators in heating and current drive
-        println("submap = ", map["$(ei)_power_destination"])
         for actuator ∈ all_actuators
             m = map["$(ei)_power_destination"][actuator]
-            println("actuator = $actuator, m = $m")
             if (m !== nothing) && (m !== "nothing")
                 tag = Symbol("power_$(actuator)")
                 hcd_act = getproperty(hcd, tag)
                 if ismissing(hcd_act, Symbol("value"))
-                    # resize!(hcd[tag], 1)
-                    # resize!(hcd[tag]["source"], 1)
-                    # resize!(hcd[tag]["value"], 1)
                     hcd_act.source = "Inferred from SOLPS input deck"
                     hcd_act.value = ids.summary.time * 0.0
                 end
@@ -171,7 +158,6 @@ function load_summary_data!(
         end
         # Special for fusion power since it's outside of the rest
         m = map["$(ei)_power_destination"]["fusion"]
-        println("fusion time. m=$m")
         if (m !== nothing) && (m !== "nothing")
             ids.summary.fusion.power.source = "Inferred from SOLPS input deck"
             if ismissing(ids.summary.fusion.power, Symbol("value"))

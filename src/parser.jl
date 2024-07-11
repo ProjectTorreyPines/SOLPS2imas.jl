@@ -270,7 +270,6 @@ as well as particle fluxes. Returns a dictionary of interpreted results.
 function read_b2_boundary_parameters(filename::String)::Dict{String, Any}
     ret_dict = Dict{String, Any}()
     namelist = readnml(filename)
-    println(namelist)
     nbc = namelist[:boundary][:nbc]
 
     # Sources from core
@@ -282,7 +281,6 @@ function read_b2_boundary_parameters(filename::String)::Dict{String, Any}
     for bc ∈ 1:nbc
         # Only consider south boundaries. South boundaries are at the interface with
         # the core and at the PFR mesh edges. No power should come from the PFR.
-        println("bc = ", bc, ", bcchar=", namelist[:boundary][:BCCHAR][bc])
         core_source = false
         if namelist[:boundary][:BCCHAR][bc] == "S"
             # ENE : electron energy condition
