@@ -8,35 +8,14 @@ Depth = 5
 
 ## Installation
 
-### Using make:
-After cloning this repo, check the make menu:
+SOLPS2IMAS is registered with public repository [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/). For installation:
+
 ```
-SOLPS2IMAS.jl % make help
-Help Menu
-
-make env_with_cloned_repo (or make r): Creates a Julia environment with the cloned repositories
-make env_with_git_url (or make u): Creates a Julia environment with the git urls without creating local clones
-make clean: Deletes Project.toml and Manifest.toml for a fresh start
+using Pkg
+Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
+Pkg.Registry.add("General")
+Pkg.add("SOLPS2IMAS")
 ```
-
-#### make r
-This option creates local copies of required private repositories at the same level as current repository and uses them in develop mode to create a Manifest.toml
-
-#### make u
-This option uses url of required private repositories to create a static Manifest.toml attached to current master branches of these repositories.
-
-#### make clean
-Deletes Manifest.toml so that environment can be recreated, to update or change the last used method.
-
-### Using Julia REPL and installing using Github url
-
-Or, in julia REPL:
-```julia
-julia> using Pkg;
-julia> Pkg.add(; url="https://github.com/ProjectTorreyPines/IMASDD.jl.git");
-julia> Pkg.add(; url="https://github.com/ProjectTorreyPines/GGDUtils.jl.git");
-julia> Pkg.add(; url="https://github.com/ProjectTorreyPines/SOLPS2IMAS.jl.git");
-julia> Pkg.instantiate()
 ```
 
 ## solps2imas
