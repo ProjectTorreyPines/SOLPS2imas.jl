@@ -16,7 +16,6 @@ Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseReg
 Pkg.Registry.add("General")
 Pkg.add("SOLPS2IMAS")
 ```
-```
 
 ## solps2imas
 
