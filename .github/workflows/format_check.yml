@@ -2,12 +2,12 @@ name: Format Check
 
 on:
   push:
-    branches: ["master", "dev", "reuse_ci"]
+    branches: ["master", "reuse_ci"]
     paths:
       - '.github/workflows/format_check.yml'
       - '**.jl'
   pull_request:
-    branches: ["master", "dev"]
+    branches: ["master"]
     paths:
       - '.github/workflows/format_check.yml'
       - '**.jl'

@@ -2,14 +2,14 @@ name: Test
 
 on:
   push:
-    branches: ["master", "dev", "reuse_ci"]
+    branches: ["master", "reuse_ci"]
     paths:
       - '.github/workflows/test.yml'
       - 'src/**'
       - 'test/**'
       - 'Project.toml'
   pull_request:
-    branches: ["master", "dev"]
+    branches: ["master"]
     paths:
       - '.github/workflows/test.yml'
       - 'src/**'
