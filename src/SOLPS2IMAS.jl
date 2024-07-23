@@ -195,7 +195,7 @@ function solps2imas(
     fort::Tuple{String, String, String}=("", "", ""),
     fort_tol::Float64=1e-6,
     b2_parameters::Tuple{String, String, String, String}=("", "", "", ""),
-    load_bb::Bool=false,
+    load_bb::Bool=true,
 )::IMASDD.dd
     # Initialize an empty IMAS data structre
     ids = IMASDD.dd()
@@ -765,9 +765,9 @@ function solps2imas(
             b_z.grid_index =
                 b_r.grid_index = b_t.grid_index = gsdesc["identifier"]["index"]
             b_z.grid_subset_index = b_r.grid_subset_index = b_t.grid_subset_index = 5
-            resize!(b_z.values, ncell)
-            resize!(b_r.values, ncell)
-            resize!(b_t.values, ncell)
+            b_z.values = zeros(ncell)
+            b_r.values = zeros(ncell)
+            b_t.values = zeros(ncell)
             for iy ∈ 1:ny
                 for ix ∈ 1:nx
                     ic::Int = (iy - 1) * nx + ix
