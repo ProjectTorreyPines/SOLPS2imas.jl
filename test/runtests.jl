@@ -159,7 +159,7 @@ if args["solps2imas"]
         b2t = SOLPS2IMAS.read_b2_output(b2output)
         nx = b2t["dim"]["nx"]
         print("solps2imas() time: ")
-        @time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn=b2mn)
+        @time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn=b2mn, load_bb=false)
         # Check time stamp 3 at iy=4, ix=5
         it = 3
         iy = 4
@@ -211,6 +211,15 @@ if args["solps2imas"]
         @test Set(brute_force_pfrcut_list) == Set(subset_pfrcut_element_list)
         @test Set(brute_force_corebnd_list) == Set(subset_corebnd_element_list)
         @test Set(brute_force_separatrix_list) == Set(subset_separatrix_element_list)
+
+        # Test loading of magnetic field data from b2fgmtry to equilibrium IDS
+        @time ddbb = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn=b2mn, load_bb=true)
+        btor = ddbb.equilibrium.time_slice[1].ggd[1].b_field_tor[1].values
+        bz = ddbb.equilibrium.time_slice[1].ggd[1].b_field_z[1].values
+        br = ddbb.equilibrium.time_slice[1].ggd[1].b_field_r[1].values
+        @test length(btor) == (nx * ny)
+        @test length(bz) == length(btor)
+        @test length(br) == length(bz)
     end
 end
 
