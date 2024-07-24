@@ -45,8 +45,8 @@ solps_var_to_imas = YAML_load_file("$(@__DIR__)/solps_var_to_imas.yml")
     val_obj(
         ggd::IMASDD.edge_profiles__ggd,
         var::String,
-        grid_ggd_index::Int64;
-        gsi_ch::Dict{Int64, Int64}=Dict{Int64, Int64}(),
+        grid_ggd_index::Int;
+        gsi_ch::Dict{Int, Int}=Dict{Int, Int}(),
     )
 
 Given SOLPS variable name (var), returns pair of parent object and property name
@@ -57,8 +57,8 @@ a dictionary gsi_ch.
 function val_obj(
     ggd::IMASDD.edge_profiles__ggd,
     var::String,
-    grid_ggd_index::Int64;
-    gsi_ch::Dict{Int64, Int64}=Dict{Int64, Int64}(),
+    grid_ggd_index::Int;
+    gsi_ch::Dict{Int, Int}=Dict{Int, Int}(),
 )
     if var ∉ keys(solps_var_to_imas)
         return nothing, nothing
@@ -77,7 +77,7 @@ function val_obj(
                     resize!(parent, length(parent) + 1)
                     parent = parent[end]
                 else
-                    ind = parse(Int64, ind_str)
+                    ind = parse(Int, ind_str)
                     if length(parent) < ind
                         resize!(parent, ind)
                     end
@@ -291,7 +291,7 @@ function solps2imas(
             #     edges[i].nodes = [0, 0]
             #     resize!(edges[i].boundary, 2)
             #     for bnd ∈ edges[i].boundary
-            #         bnd.neighbours = Int64[]
+            #         bnd.neighbours = Int[]
             #     end
             # end
             # Initialize nodes and boundaries for cells
@@ -299,7 +299,7 @@ function solps2imas(
                 cells[i].nodes = [0, 0, 0, 0]
                 resize!(cells[i].boundary, 4)
                 for bnd ∈ cells[i].boundary
-                    bnd.neighbours = Int64[]
+                    bnd.neighbours = Int[]
                 end
             end
 
@@ -346,7 +346,7 @@ function solps2imas(
                             edges[edge_ind].nodes = edge_nodes
                             resize!(edges[edge_ind].boundary, 2)
                             for bnd ∈ edges[edge_ind].boundary
-                                bnd.neighbours = Int64[]
+                                bnd.neighbours = Int[]
                             end
                             for (ii, edge_bnd) ∈ enumerate(edges[edge_ind].boundary)
                                 edge_bnd.index = edge_nodes[ii]
@@ -554,7 +554,7 @@ function solps2imas(
         end  # End of setting up space
     end
 
-    gsi_ch = Dict{Int64, Int64}()
+    gsi_ch = Dict{Int, Int}()
     if fort != ("", "", "")
         grid_ggd = ids.edge_profiles.grid_ggd[1]
         space = grid_ggd.space[1]
@@ -629,7 +629,7 @@ function solps2imas(
         fnodeXnodeY = collect(skipmissing(vec(f33'))) * 1e-2 # cm to m
         fnodeX = fnodeXnodeY[1:fnnodes]
         fnodeY = fnodeXnodeY[fnnodes+1:end]
-        fnode_inds = Array{Int64}(undef, fnnodes)
+        fnode_inds = Array{Int}(undef, fnnodes)
         for fnind ∈ 1:fnnodes
             i_existing = search_point(
                 nodes,
@@ -652,7 +652,7 @@ function solps2imas(
         f34 = readdlm(fort[2])
         fntria = f34[1, 1]
         fntriIndNodes = f34[2:end, :]
-        fntri_inds = Array{Int64}(undef, fntria)
+        fntri_inds = Array{Int}(undef, fntria)
         for fntri ∈ 1:fntria
             resize!(cells, length(cells) + 1)
             this_cell_ind = length(cells)
@@ -696,7 +696,7 @@ function solps2imas(
                 if f35[ii, neigh_col_ind] != 0
                     bnd.neighbours = [fntri_inds[f35[ii, neigh_col_ind]]]
                 else
-                    bnd.neighbours = Int64[]
+                    bnd.neighbours = Int[]
                 end
             end
             if f35[ii, 11] != -1 && f35[ii, 12] != -1
