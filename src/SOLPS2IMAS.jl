@@ -196,10 +196,8 @@ function solps2imas(
     fort_tol::Float64=1e-6,
     b2_parameters::Tuple{String, String, String, String}=("", "", "", ""),
     load_bb::Bool=true,
+    ids::IMASDD.dd = IMASDD.dd()
 )::IMASDD.dd
-    # Initialize an empty IMAS data structre
-    ids = IMASDD.dd()
-
     # Setup the grid first
     gmtry = read_b2_output(b2gmtry)
 
@@ -552,6 +550,19 @@ function solps2imas(
                 )
             end
         end  # End of setting up space
+    end
+
+    # If an equilibrium flux map exists for one and only one time slice, override
+    # the default time that would be assigned to the grid and use the equilibrium
+    # time instead.
+    eq_times = []
+    if hasproperty(ids, :equilibrium)
+        if hasproperty(ids.equilibrium, :time)
+            eq_times = ids.equilibrium.time
+        end
+    end
+    if (gmtry["dim"]["time"] == 1) && (length(eq_times) == 1)
+        ids.edge_profiles.grid_ggd[1].time = eq_times[1]
     end
 
     gsi_ch = Dict{Int, Int}()
