@@ -1,7 +1,6 @@
 module SOLPS2IMAS
 
-using Revise
-using IMASDD: IMASDD
+using IMASdd: IMASdd
 using NCDatasets: Dataset, dimnames
 using YAML: load_file as YAML_load_file
 using DelimitedFiles: readdlm
@@ -43,7 +42,7 @@ dict2prop!(obj, dict) =
 solps_var_to_imas = YAML_load_file("$(@__DIR__)/solps_var_to_imas.yml")
 """
     val_obj(
-        ggd::IMASDD.edge_profiles__ggd,
+        ggd::IMASdd.edge_profiles__ggd,
         var::String,
         grid_ggd_index::Int;
         gsi_ch::Dict{Int, Int}=Dict{Int, Int}(),
@@ -55,7 +54,7 @@ Optionally, a mapping of possibly changes in grid_subset_index can be provided a
 a dictionary gsi_ch.
 """
 function val_obj(
-    ggd::IMASDD.edge_profiles__ggd,
+    ggd::IMASdd.edge_profiles__ggd,
     var::String,
     grid_ggd_index::Int;
     gsi_ch::Dict{Int, Int}=Dict{Int, Int}(),
@@ -112,7 +111,7 @@ chosen_tri_edge_order = [(1, (1, 2)),
 
 """
     load_summary_data!(
-        ids::IMASDD.dd,
+        ids::IMASdd.dd,
         b2_parameters::Tuple{String, String, String, String}=("", "", "", "");
     )
 
@@ -120,7 +119,7 @@ Loads high level shot summary data into the summary IDS after reading and interp
 SOLPS input files, such as b2.*.parameters.
 """
 function load_summary_data!(
-    ids::IMASDD.dd,
+    ids::IMASdd.dd,
     b2_parameters::Tuple{String, String, String, String}=("", "", "", "");
 )
     bdry_info = nothing
@@ -178,7 +177,7 @@ end
         fort_tol::Float64=1e-6,
         b2_parameters::Tuple{String, String, String, String,}=("", "", "", ""),
         load_bb::Bool=false,
-    )::IMASDD.dd
+    )::IMASdd.dd
 
 Main function of the module. Takes in a geometry file and an (optional) output file
 (either b2time or b2fstate) and a grid\\_ggd description in the form of a Dict or
@@ -196,8 +195,8 @@ function solps2imas(
     fort_tol::Float64=1e-6,
     b2_parameters::Tuple{String, String, String, String}=("", "", "", ""),
     load_bb::Bool=true,
-    ids::IMASDD.dd = IMASDD.dd()
-)::IMASDD.dd
+    ids::IMASdd.dd = IMASDD.dd()
+)::IMASdd.dd
     # Setup the grid first
     gmtry = read_b2_output(b2gmtry)
 
@@ -552,12 +551,13 @@ function solps2imas(
         end  # End of setting up space
     end
 
+
     # If an equilibrium flux map exists for one and only one time slice, override
     # the default time that would be assigned to the grid and use the equilibrium
     # time instead.
     eq_times = []
     if hasproperty(ids, :equilibrium)
-        if hasproperty(ids.equilibrium, :time)
+        if hasproperty(ids.equilibrium, :time) && !ismissing(ids.equilibrium, :time)
             eq_times = ids.equilibrium.time
         end
     end

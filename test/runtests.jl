@@ -2,7 +2,7 @@ using SOLPS2IMAS: SOLPS2IMAS
 using Test
 using YAML: load_file as YAML_load_file
 using ArgParse: ArgParse
-using IMASDD: IMASDD
+using IMASdd: IMASdd
 import SOLPS2IMAS: get_grid_subset, read_b2_boundary_parameters
 
 allowed_rtol = 1e-4
@@ -103,7 +103,7 @@ if args["parser"]
             for ark ∈ always_required_keys
                 @test ark in keys(b2mn_data)
             end
-            b2mn_json = IMASDD.JSON.parsefile(b2mn_sample * ".json")
+            b2mn_json = IMASdd.JSON.parsefile(b2mn_sample * ".json")
             @test b2mn_json == b2mn_data
         end
     end
@@ -295,7 +295,7 @@ if args["namelist"]
               boundary_params["number_of_core_source_boundaries"]
 
         # Using parameters namelist to populate summary data
-        ids = IMASDD.dd()
+        ids = IMASdd.dd()
         SOLPS2IMAS.load_summary_data!(ids, (testfile, "", "", ""))
         @test !(ismissing(ids.summary.heating_current_drive.power_ec, :value))
     end

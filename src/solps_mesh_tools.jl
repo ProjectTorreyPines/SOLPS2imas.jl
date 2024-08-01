@@ -37,13 +37,13 @@ function data_xytoc(data::Matrix{Float64}; nx::Int)::Vector{Float64}
     return flat_data
 end
 
-edges_nodes_type = IMASDD.IDSvector{
-    IMASDD.edge_profiles__grid_ggd___space___objects_per_dimension___object{T},
+edges_nodes_type = IMASdd.IDSvector{
+    IMASdd.edge_profiles__grid_ggd___space___objects_per_dimension___object{T},
 } where {T}
 
 """
     search_point(
-        nodes::IMASDD.IDSvector{IMASDD.edge_profiles__grid_ggd___space___objects_per_dimension___object{T}},
+        nodes::IMASdd.IDSvector{IMASdd.edge_profiles__grid_ggd___space___objects_per_dimension___object{T}},
         r::Real,
         z::Real;
         tol::Float64=0.0,
@@ -71,7 +71,7 @@ end
 
 """
     search_edges(
-        edges::IMASDD.IDSvector{IMASDD.edge_profiles__grid_ggd___space___objects_per_dimension___object{T}},
+        edges::IMASdd.IDSvector{IMASdd.edge_profiles__grid_ggd___space___objects_per_dimension___object{T}},
         edge_nodes::Array{Int, 1}
     )::Int where {T}
 
@@ -210,8 +210,8 @@ end
 
 """
     attach_neightbours!(
-        cells::IMASDD.IDSvector{IMASDD.edge_profiles__grid_ggd___space___objects_per_dimension___object{T}},
-        edges::IMASDD.IDSvector{IMASDD.edge_profiles__grid_ggd___space___objects_per_dimension___object{T}},
+        cells::IMASdd.IDSvector{IMASdd.edge_profiles__grid_ggd___space___objects_per_dimension___object{T}},
+        edges::IMASdd.IDSvector{IMASdd.edge_profiles__grid_ggd___space___objects_per_dimension___object{T}},
         gmtry::Dict{String, Dict{String, Any}},
         it::Int,
     ) where {T}
