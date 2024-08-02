@@ -195,7 +195,7 @@ function solps2imas(
     fort_tol::Float64=1e-6,
     b2_parameters::Tuple{String, String, String, String}=("", "", "", ""),
     load_bb::Bool=true,
-    ids::IMASdd.dd = IMASdd.dd()
+    ids::IMASdd.dd=IMASdd.dd(),
 )::IMASdd.dd
     # Setup the grid first
     gmtry = read_b2_output(b2gmtry)
@@ -550,7 +550,6 @@ function solps2imas(
             end
         end  # End of setting up space
     end
-
 
     # If an equilibrium flux map exists for one and only one time slice, override
     # the default time that would be assigned to the grid and use the equilibrium
