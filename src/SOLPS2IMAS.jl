@@ -195,7 +195,7 @@ function solps2imas(
     fort_tol::Float64=1e-6,
     b2_parameters::Tuple{String, String, String, String}=("", "", "", ""),
     load_bb::Bool=true,
-    ids::IMASdd.dd = IMASDD.dd()
+    ids::IMASdd.dd = IMASdd.dd()
 )::IMASdd.dd
     # Setup the grid first
     gmtry = read_b2_output(b2gmtry)
