@@ -1,5 +1,5 @@
 
-# SOLPS2IMAS.jl 
+# SOLPS2imas.jl 
 
 ```@contents
 Pages = ["index.md"]
@@ -8,13 +8,11 @@ Depth = 5
 
 ## Installation
 
-SOLPS2IMAS is registered with public repository [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/). For installation:
+For installation:
 
 ```
 using Pkg
-Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
-Pkg.Registry.add("General")
-Pkg.add("SOLPS2IMAS")
+Pkg.add("SOLPS2imas")
 ```
 
 ## solps2imas
@@ -44,15 +42,15 @@ read_b2_boundary_parameters
 ## SOLPS Mesh Tools
 
 ```@docs
-SOLPS2IMAS.xytoc
-SOLPS2IMAS.ctoxy
-SOLPS2IMAS.data_xytoc
-SOLPS2IMAS.search_point
-SOLPS2IMAS.search_edges
-SOLPS2IMAS.distance_between_nodes
-SOLPS2IMAS.neighbour_inds
-SOLPS2IMAS.get_neighbour_inds
-SOLPS2IMAS.attach_neightbours!
+SOLPS2imas.xytoc
+SOLPS2imas.ctoxy
+SOLPS2imas.data_xytoc
+SOLPS2imas.search_point
+SOLPS2imas.search_edges
+SOLPS2imas.distance_between_nodes
+SOLPS2imas.neighbour_inds
+SOLPS2imas.get_neighbour_inds
+SOLPS2imas.attach_neightbours!
 ```
 
 ## Subset Identification Tools
@@ -60,21 +58,21 @@ SOLPS2IMAS.attach_neightbours!
 These functions provide a way to identify if a linear cell index in SOLPS notation belongs to a grid subset.
 
 ```@docs
-SOLPS2IMAS.in_core
-SOLPS2IMAS.in_sol
-SOLPS2IMAS.in_idr
-SOLPS2IMAS.in_odr
-SOLPS2IMAS.is_x_aligned
-SOLPS2IMAS.is_y_aligned
-SOLPS2IMAS.is_core_cut
-SOLPS2IMAS.is_pfr_cut
-SOLPS2IMAS.is_outer_throat
-SOLPS2IMAS.is_inner_throat
-SOLPS2IMAS.is_outer_midplane
-SOLPS2IMAS.is_inner_midplane
-SOLPS2IMAS.is_outer_target
-SOLPS2IMAS.is_inner_target
-SOLPS2IMAS.is_core_boundary
-SOLPS2IMAS.is_separatrix
-SOLPS2IMAS.get_xpoint_nodes
+SOLPS2imas.in_core
+SOLPS2imas.in_sol
+SOLPS2imas.in_idr
+SOLPS2imas.in_odr
+SOLPS2imas.is_x_aligned
+SOLPS2imas.is_y_aligned
+SOLPS2imas.is_core_cut
+SOLPS2imas.is_pfr_cut
+SOLPS2imas.is_outer_throat
+SOLPS2imas.is_inner_throat
+SOLPS2imas.is_outer_midplane
+SOLPS2imas.is_inner_midplane
+SOLPS2imas.is_outer_target
+SOLPS2imas.is_inner_target
+SOLPS2imas.is_core_boundary
+SOLPS2imas.is_separatrix
+SOLPS2imas.get_xpoint_nodes
 ```

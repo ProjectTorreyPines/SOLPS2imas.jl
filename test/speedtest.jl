@@ -1,4 +1,4 @@
-using SOLPS2IMAS: SOLPS2IMAS
+using SOLPS2imas: SOLPS2imas
 
 println("-----------------------------------------------------------------------------")
 b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
@@ -9,6 +9,6 @@ fort = (
     "$(@__DIR__)/../samples/fort.34",
     "$(@__DIR__)/../samples/fort.35")
 print("solps2imas(b2gmtry, b2output; b2mn, fort) time with compilation: ")
-@time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn, fort);
+@time dd = SOLPS2imas.solps2imas(b2gmtry, b2output; b2mn, fort);
 print("solps2imas(b2gmtry, b2output; b2mn, fort) time (true runtime): ")
-@time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn, fort);
+@time dd = SOLPS2imas.solps2imas(b2gmtry, b2output; b2mn, fort);

@@ -1,15 +1,15 @@
 using Documenter
-using SOLPS2IMAS
+using SOLPS2imas
 
 makedocs(;
-    modules=[SOLPS2IMAS],
+    modules=[SOLPS2imas],
     format=Documenter.HTML(),
-    sitename="SOLPS2IMAS",
+    sitename="SOLPS2imas",
     checkdocs=:none,
 )
 
 deploydocs(;
-    repo="github.com/ProjectTorreyPines/SOLPS2IMAS.jl.git",
+    repo="github.com/ProjectTorreyPines/SOLPS2imas.jl.git",
     target="build",
     branch="gh-pages",
     devbranch="master",

@@ -1,9 +1,9 @@
-using SOLPS2IMAS: SOLPS2IMAS
+using SOLPS2imas: SOLPS2imas
 using Test
 using YAML: load_file as YAML_load_file
 using ArgParse: ArgParse
 using IMASdd: IMASdd
-import SOLPS2IMAS: get_grid_subset, read_b2_boundary_parameters
+import SOLPS2imas: get_grid_subset, read_b2_boundary_parameters
 
 allowed_rtol = 1e-4
 
@@ -52,9 +52,9 @@ if args["ind"]
         success = true
         for iy ∈ 1:ny
             for ix ∈ 1:nx
-                cxy = SOLPS2IMAS.ctoxy(SOLPS2IMAS.xytoc(ix, iy; nx=nx); nx=nx)
+                cxy = SOLPS2imas.ctoxy(SOLPS2imas.xytoc(ix, iy; nx=nx); nx=nx)
                 if cxy != (ix, iy)
-                    ic = SOLPS2IMAS.xytoc(ix, iy; nx=nx)
+                    ic = SOLPS2imas.xytoc(ix, iy; nx=nx)
                     println(
                         "ic: ",
                         ic,
@@ -71,9 +71,9 @@ if args["ind"]
         end
 
         for ic ∈ 1:nx*ny
-            cic = SOLPS2IMAS.xytoc(SOLPS2IMAS.ctoxy(ic; nx=nx)...; nx=nx)
+            cic = SOLPS2imas.xytoc(SOLPS2imas.ctoxy(ic; nx=nx)...; nx=nx)
             if cic != ic
-                ix, iy = SOLPS2IMAS.ctoxy(ic; nx=nx)
+                ix, iy = SOLPS2imas.ctoxy(ic; nx=nx)
                 println(
                     "ic: ",
                     ic,
@@ -99,7 +99,7 @@ if args["parser"]
         ]
         always_required_keys = ["b2mndr_ntim", "b2mndr_dtim"]
         for b2mn_sample ∈ b2mn_samples
-            b2mn_data = SOLPS2IMAS.read_b2mn_output(b2mn_sample)
+            b2mn_data = SOLPS2imas.read_b2mn_output(b2mn_sample)
             for ark ∈ always_required_keys
                 @test ark in keys(b2mn_data)
             end
@@ -111,7 +111,7 @@ end
 
 if args["b2"]
     @testset "Test read_b2_output" begin
-        contents = SOLPS2IMAS.read_b2_output("$(@__DIR__)/../samples/b2fstate")
+        contents = SOLPS2imas.read_b2_output("$(@__DIR__)/../samples/b2fstate")
         nt = contents["dim"]["time"]
         nx = contents["dim"]["nx"]
         ny = contents["dim"]["ny"]
@@ -121,7 +121,7 @@ if args["b2"]
         @test size(contents["data"]["fna"]) == (nt, ns, 2, ny, nx)
         @test size(contents["data"]["fhe"]) == (nt, ns, ny, nx)
 
-        contents = SOLPS2IMAS.read_b2_output("$(@__DIR__)/../samples/b2fgmtry")
+        contents = SOLPS2imas.read_b2_output("$(@__DIR__)/../samples/b2fgmtry")
         nt = contents["dim"]["time"]
         nxg = contents["dim"]["nx"]
         nyg = contents["dim"]["ny"]
@@ -130,7 +130,7 @@ if args["b2"]
         @test nyg == ny
         @test nxg == nx
 
-        contents = SOLPS2IMAS.read_b2_output("$(@__DIR__)/../samples/b2time_red.nc")
+        contents = SOLPS2imas.read_b2_output("$(@__DIR__)/../samples/b2time_red.nc")
         nx = contents["dim"]["nx"]
         ny = contents["dim"]["ny"]
         nybl = contents["dim"]["nybl"]
@@ -156,10 +156,10 @@ if args["solps2imas"]
         b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
         b2output = "$(@__DIR__)/../samples/b2time.nc"
         b2mn = "$(@__DIR__)/../samples/b2mn.dat"
-        b2t = SOLPS2IMAS.read_b2_output(b2output)
+        b2t = SOLPS2imas.read_b2_output(b2output)
         nx = b2t["dim"]["nx"]
         print("solps2imas() time: ")
-        @time dd = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn=b2mn, load_bb=false)
+        @time dd = SOLPS2imas.solps2imas(b2gmtry, b2output; b2mn=b2mn, load_bb=false)
         # Check time stamp 3 at iy=4, ix=5
         it = 3
         iy = 4
@@ -174,15 +174,15 @@ if args["solps2imas"]
         # as using a brute force definition which is too dependent
         # on the correct ordering of nodes in SOLPS data files.
         cut_keys = ["leftcut", "rightcut", "bottomcut", "topcut"]
-        gmtry = SOLPS2IMAS.read_b2_output(b2gmtry)
+        gmtry = SOLPS2imas.read_b2_output(b2gmtry)
         ny = gmtry["dim"]["ny"]
         cuts = Dict([(Symbol(key), gmtry["data"][key][1]) for key ∈ cut_keys])
         subset_pfrcut =
-            SOLPS2IMAS.get_grid_subset(dd.edge_profiles.grid_ggd[1], 8)
+            SOLPS2imas.get_grid_subset(dd.edge_profiles.grid_ggd[1], 8)
         subset_corebnd =
-            SOLPS2IMAS.get_grid_subset(dd.edge_profiles.grid_ggd[1], 15)
+            SOLPS2imas.get_grid_subset(dd.edge_profiles.grid_ggd[1], 15)
         subset_separatrix =
-            SOLPS2IMAS.get_grid_subset(dd.edge_profiles.grid_ggd[1], 16)
+            SOLPS2imas.get_grid_subset(dd.edge_profiles.grid_ggd[1], 16)
         cells = dd.edge_profiles.grid_ggd[1].space[1].objects_per_dimension[3].object
         subset_pfrcut_element_list =
             [ele.object[1].index for ele ∈ subset_pfrcut.element]
@@ -197,12 +197,12 @@ if args["solps2imas"]
             for ix ∈ 1:nx
                 for boundary_ind ∈ 1:4
                     edge_ind =
-                        cells[SOLPS2IMAS.xytoc(ix, iy; nx)].boundary[boundary_ind].index
-                    if SOLPS2IMAS.is_pfr_cut(; ix, iy, cells, nx, boundary_ind, cuts...)
+                        cells[SOLPS2imas.xytoc(ix, iy; nx)].boundary[boundary_ind].index
+                    if SOLPS2imas.is_pfr_cut(; ix, iy, cells, nx, boundary_ind, cuts...)
                         append!(brute_force_pfrcut_list, edge_ind)
-                    elseif SOLPS2IMAS.is_core_boundary(; ix, iy, boundary_ind, cuts...)
+                    elseif SOLPS2imas.is_core_boundary(; ix, iy, boundary_ind, cuts...)
                         append!(brute_force_corebnd_list, edge_ind)
-                    elseif SOLPS2IMAS.is_separatrix(; iy, boundary_ind, cuts...)
+                    elseif SOLPS2imas.is_separatrix(; iy, boundary_ind, cuts...)
                         append!(brute_force_separatrix_list, edge_ind)
                     end
                 end
@@ -213,7 +213,7 @@ if args["solps2imas"]
         @test Set(brute_force_separatrix_list) == Set(subset_separatrix_element_list)
 
         # Test loading of magnetic field data from b2fgmtry to equilibrium IDS
-        @time ddbb = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn=b2mn, load_bb=true)
+        @time ddbb = SOLPS2imas.solps2imas(b2gmtry, b2output; b2mn=b2mn, load_bb=true)
         btor = ddbb.equilibrium.time_slice[1].ggd[1].b_field_tor[1].values
         bz = ddbb.equilibrium.time_slice[1].ggd[1].b_field_z[1].values
         br = ddbb.equilibrium.time_slice[1].ggd[1].b_field_r[1].values
@@ -232,7 +232,7 @@ if args["fort"]
         b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
         b2output = "$(@__DIR__)/../samples/b2time.nc"
         b2mn = "$(@__DIR__)/../samples/b2mn.dat"
-        ids = SOLPS2IMAS.solps2imas(b2gmtry, b2output; b2mn=b2mn, fort=fort)
+        ids = SOLPS2imas.solps2imas(b2gmtry, b2output; b2mn=b2mn, fort=fort)
         grid_ggd = ids.edge_profiles.grid_ggd[1]
         space = grid_ggd.space[1]
 
@@ -253,7 +253,7 @@ if args["fort"]
         edges = grid_ggd.space[1].objects_per_dimension[2].object
         cells = grid_ggd.space[1].objects_per_dimension[3].object
 
-        gmtry = SOLPS2IMAS.read_b2_output(b2gmtry)
+        gmtry = SOLPS2imas.read_b2_output(b2gmtry)
         nx = gmtry["dim"]["nx"]
         ny = gmtry["dim"]["ny"]
         extra_nodes = 2 * (nx + ny)
@@ -276,7 +276,7 @@ if args["fort"]
                         cells[cells[tricell_ind].boundary[bnd_ind].neighbours[1]].nodes,
                     )
                     vert_no = Tuple(indexin(common_nodes, cells[tricell_ind].nodes))
-                    @test SOLPS2IMAS.chosen_tri_edge_order[bnd_ind][2] == vert_no
+                    @test SOLPS2imas.chosen_tri_edge_order[bnd_ind][2] == vert_no
                 end
             end
         end
@@ -287,7 +287,7 @@ if args["namelist"]
     @testset "Test parsing of namelists" begin
         # Basic parameters namelist parsing
         testfile = "$(@__DIR__)/../samples/b2.boundary.parameters"
-        boundary_params = SOLPS2IMAS.read_b2_boundary_parameters(testfile)
+        boundary_params = SOLPS2imas.read_b2_boundary_parameters(testfile)
         println(boundary_params)
         @test boundary_params["power_electrons"] > 0.0
         @test boundary_params["power_ions"] > 0.0
@@ -296,7 +296,7 @@ if args["namelist"]
 
         # Using parameters namelist to populate summary data
         ids = IMASdd.dd()
-        SOLPS2IMAS.load_summary_data!(ids, (testfile, "", "", ""))
+        SOLPS2imas.load_summary_data!(ids, (testfile, "", "", ""))
         @test !(ismissing(ids.summary.heating_current_drive.power_ec, :value))
     end
 end
