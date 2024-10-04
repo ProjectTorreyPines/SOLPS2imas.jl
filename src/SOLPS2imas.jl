@@ -6,7 +6,7 @@ using YAML: load_file as YAML_load_file
 using DelimitedFiles: readdlm
 import IMASggd: add_subset_element!, get_grid_subset, get_subset_boundary,
     get_subset_space, subset_do, deepcopy_subset
-using Fortran90Namelists
+# import Fortran90Namelists: readnml
 
 export solps2imas, load_summary_data!
 

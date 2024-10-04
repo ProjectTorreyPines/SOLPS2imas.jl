@@ -1,4 +1,4 @@
-export read_b2_output, read_b2mn_output, read_b2time_output, read_b2_boundary_parameters
+export read_b2_output, read_b2mn_output, read_b2time_output # , read_b2_boundary_parameters
 
 """
     read_b2time_output(filename::String)::Dict{String, Dict{String, Any}}

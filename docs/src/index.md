@@ -36,7 +36,6 @@ This module uses some parsing functions which can be used standalone as well
 read_b2_output
 read_b2mn_output
 read_b2time_output
-read_b2_boundary_parameters
 ```
 
 ## SOLPS Mesh Tools
