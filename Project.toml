@@ -1,7 +1,7 @@
 name = "SOLPS2imas"
 uuid = "09becab6-0636-4c23-a92a-2b3723265c31"
 authors = ["David Eldon <eldond@fusion.gat.com>"]
-version = "1.0.3"
+version = "2.0.0"
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
