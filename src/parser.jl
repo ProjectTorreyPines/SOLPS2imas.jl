@@ -1,4 +1,4 @@
-export read_b2_output, read_b2mn_output, read_b2time_output # , read_b2_boundary_parameters
+export read_b2_output, read_b2mn_output, read_b2time_output, read_b2_boundary_parameters
 
 """
     read_b2time_output(filename::String)::Dict{String, Dict{String, Any}}
@@ -269,8 +269,8 @@ as well as particle fluxes. Returns a dictionary of interpreted results.
 """
 function read_b2_boundary_parameters(filename::String)::Dict{String, Any}
     ret_dict = Dict{String, Any}()
-    namelist = readnml(filename)
-    nbc = namelist[:boundary][:nbc]
+    namelist = boundary_param_readnml(filename)
+    nbc = namelist[:boundary][:NBC]
 
     # Sources from core
     ret_dict["power_electrons"] = 0.0  # W
@@ -347,3 +347,83 @@ function read_b2_boundary_parameters(filename::String)::Dict{String, Any}
 
     return ret_dict
 end
+
+"""
+    boundary_param_readnml(filename::String)::Dict{Symbol,Dict{Symbol,Any}}
+
+Parse fortran namelist of boundary parameters for a small subset of supported fields:
+:NBC, :BCCHAR, :BCPOS, :BCSTART, :BCEND, :BCENE, :BCENI, :ENEPAR, :ENIPAR, :GAMMAE, :GAMMAI
+
+This function should be replaced with a generic fortran namelist parser if one becomes available in julia registry
+"""
+function boundary_param_readnml(filename::String)::Dict{Symbol, Dict{Symbol, Any}}
+    supported_fields = [
+        :NBC,
+        :BCCHAR,
+        :BCPOS,
+        :BCSTART,
+        :BCEND,
+        :BCENE,
+        :BCENI,
+        :ENEPAR,
+        :ENIPAR,
+        :GAMMAE,
+        :GAMMAI,
+    ]
+    data = Dict{Symbol, Dict{Symbol, Any}}()
+    working_dict = data
+    open(filename, "r") do io
+        for line ∈ eachline(io)
+            # skip comments or empty lines
+            line = split(line, ";")[1]
+            line = split(line, "!")[1]
+            line = split(line, "#")[1]
+            line = strip(line)
+            if length(line) == 0
+                continue
+            end
+            line = replace(line, "\$" => "&")
+            line = replace(line, r"^&$" => "/")
+            line = replace(line, "&end" => "/")
+
+            # remove spaces
+            if startswith(line, '&')
+                sub_dir = Symbol(replace(line, "&" => ""))
+                data[sub_dir] = Dict{Symbol, Any}()
+                working_dict = data[sub_dir]
+            end
+
+            if contains(line, "=")
+                key_values = split(line, "=")
+                key = Symbol(uppercase(strip(key_values[1])))
+                if key in supported_fields
+                    values = filter(e -> e != "", split(key_values[2], ","))
+                    if length(values) == 1
+                        working_dict[key] = fortran_parse(strip(values[1]))
+                    else
+                        working_dict[key] =
+                            [fortran_parse(strip(value)) for value ∈ values]
+                    end
+                end
+            end
+        end
+    end
+    return data
+end
+
+"""
+    fortran_parse(str::AbstractString)
+
+Very basic and specific fortran parsing.
+"""
+fortran_parse(str::AbstractString) =
+    if contains(str, "'")
+        return split(str, "'")[2]
+    else
+        for types ∈ [Int64, Float64, Bool, String]
+            try
+                return parse(types, str)
+            catch
+            end
+        end
+    end
