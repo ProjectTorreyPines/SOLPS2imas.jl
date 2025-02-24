@@ -119,19 +119,13 @@ Loads high level shot summary data into the summary IDS after reading and interp
 SOLPS input files, such as b2.*.parameters.
 """
 function load_summary_data!(
-    ids::IMASdd.dd,
-    b2_parameters::Tuple{String, String, String, String}=("", "", "", "");
+    ids::IMASdd.dd;
+    b2_boundary_parameters::String="",
 )
-    bdry_info = nothing
-    for b2param ∈ b2_parameters
-        if occursin("b2.boundary.parameters", b2param)
-            bdry_info = read_b2_boundary_parameters(b2param)
-            break
-        end
-    end
-    if bdry_info == nothing
+    if b2_boundary_parameters == ""
         return
     end
+    bdry_info = read_b2_boundary_parameters(b2_boundary_parameters)
     if ismissing(ids.summary, :time)
         ids.summary.time = [0.0]
     end

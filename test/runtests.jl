@@ -31,8 +31,8 @@ function parse_commandline()
         ["--fort"],
         Dict(:help => "Test triangular mesh generation from fort files",
             :action => :store_true),
-        ["--namelist"],
-        Dict(:help => "Test parsing of namelists",
+        ["--boundary_params"],
+        Dict(:help => "Test parsing of boundary parameters",
             :action => :store_true),
     )
     args = ArgParse.parse_args(localARGS, s)
@@ -283,20 +283,25 @@ if args["fort"]
     end
 end
 
-if args["namelist"]
-    @testset "Test parsing of namelists" begin
+if args["boundary_params"]
+    @testset "Test parsing of boundary parameters" begin
         # Basic parameters namelist parsing
-        testfile = "$(@__DIR__)/../samples/b2.boundary.parameters"
-        boundary_params = SOLPS2imas.read_b2_boundary_parameters(testfile)
-        println(boundary_params)
-        @test boundary_params["power_electrons"] > 0.0
-        @test boundary_params["power_ions"] > 0.0
-        @test boundary_params["number_of_boundaries"] >
-              boundary_params["number_of_core_source_boundaries"]
+        testfilelist = [
+            "$(@__DIR__)/../samples/b2.boundary.parameters",
+            "$(@__DIR__)/../samples/SPARC_Lore_Ne_Act/b2.boundary.parameters",
+        ]
+        for testfile ∈ testfilelist
+            boundary_params = SOLPS2imas.read_b2_boundary_parameters(testfile)
+            println(boundary_params)
+            @test boundary_params["power_electrons"] > 0.0
+            @test boundary_params["power_ions"] > 0.0
+            @test boundary_params["number_of_boundaries"] >
+                  boundary_params["number_of_core_source_boundaries"]
 
-        # Using parameters namelist to populate summary data
-        ids = IMASdd.dd()
-        SOLPS2imas.load_summary_data!(ids, (testfile, "", "", ""))
-        @test !(ismissing(ids.summary.heating_current_drive.power_ec, :value))
+            # Using parameters namelist to populate summary data
+            ids = IMASdd.dd()
+            SOLPS2imas.load_summary_data!(ids; b2_boundary_parameters=testfile)
+            @test !(ismissing(ids.summary.heating_current_drive.power_ec, :value))
+        end
     end
 end

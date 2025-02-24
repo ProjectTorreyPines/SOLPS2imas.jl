@@ -1,0 +1,12 @@
+md5: bb88483881cd43571bdfc909912eaa90
+frozen: true
+deps:
+- path: SPARC_Lore_Ne_Act/run_05_0.3_td_to_0_to_1e20/b2.boundary.parameters
+  repo:
+    url: git@github.com:ProjectTorreyPines/SOLPSTestSamples.git
+    rev_lock: 6e9b7fb766146f1cf99dda99a862e4c26358046c
+outs:
+- md5: d48086df1a253daa4b8c65f522461d31
+  size: 3476
+  hash: md5
+  path: b2.boundary.parameters

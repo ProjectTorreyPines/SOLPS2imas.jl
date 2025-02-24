@@ -270,7 +270,7 @@ as well as particle fluxes. Returns a dictionary of interpreted results.
 function read_b2_boundary_parameters(filename::String)::Dict{String, Any}
     ret_dict = Dict{String, Any}()
     namelist = boundary_param_readnml(filename)
-    nbc = namelist[:boundary][:NBC]
+    nbc = namelist[:BOUNDARY][:NBC]
 
     # Sources from core
     ret_dict["power_electrons"] = 0.0  # W
@@ -282,7 +282,7 @@ function read_b2_boundary_parameters(filename::String)::Dict{String, Any}
         # Only consider south boundaries. South boundaries are at the interface with
         # the core and at the PFR mesh edges. No power should come from the PFR.
         core_source = false
-        if namelist[:boundary][:BCCHAR][bc] == "S"
+        if namelist[:BOUNDARY][:BCCHAR][bc] == "S"
             # ENE : electron energy condition
             # If BCENE is 8 or 16, ENEPAR's first element will give total power across
             # the boundary in the electron channel.
@@ -290,54 +290,52 @@ function read_b2_boundary_parameters(filename::String)::Dict{String, Any}
             # sum all south boundaries and assume someone didn't put power coming in
             # from the PFR.
             # See page 80 of SOLPS user manual 2022 09 13
-            bcene = namelist[:boundary][:BCENE][bc]
+            bcene = namelist[:BOUNDARY][:BCENE][bc]
             bcene_power = [8, 16]
             bcene_pfr_appropriate = [2, 22]
             handled_south_bcene = [bcene_power; bcene_pfr_appropriate]
             if bcene in bcene_power
-                enepar = namelist[:boundary][:ENEPAR][bc]
+                enepar = namelist[:BOUNDARY][:ENEPAR][bc]
                 ret_dict["power_electrons"] += enepar
                 if enepar != 0
                     core_source = true
                 end
             elseif bcene in bcene_pfr_appropriate
                 nothing
-            elseif !(bcene in handled_south_bcene)
-                throw(
-                    ArgumentError(
-                        "BCENE type " * repr(bcene) *
-                        " is not handled. Acceptable types = " *
-                        repr(handled_south_bcene),
-                    ),
-                )
+                # elseif !(bcene in handled_south_bcene)
+                # throw(
+                #     ArgumentError(
+                #         "BCENE type " * repr(bcene) *
+                #         " is not handled. Acceptable types = " *
+                #         repr(handled_south_bcene),
+                #     ),
+                # )
             end
 
             # ENI : ion energy condition
             # Similar to ENE, but for ions and there are more options; now 27 should be valid.
             # See page 81 of SOLPS user manual 2022 09 13
-            bceni = namelist[:boundary][:BCENI][bc]
+            bceni = namelist[:BOUNDARY][:BCENI][bc]
             bceni_power = [8, 16, 27]
             bceni_pfr_appropriate = [2, 22]
             handled_south_bceni = [bceni_power; bceni_pfr_appropriate]
             if bceni in bceni_power
-                enipar = namelist[:boundary][:ENIPAR][bc]
+                enipar = namelist[:BOUNDARY][:ENIPAR][bc]
                 ret_dict["power_ions"] += enipar
                 if enipar != 0
                     core_source = true
                 end
             elseif bceni in bceni_pfr_appropriate
                 nothing
-            elseif !(bceni in handled_south_bceni)
-                throw(
-                    ArgumentError(
-                        "BCENI type " * repr(bceni) *
-                        " is not handled. Acceptable types = " *
-                        repr(handled_south_bceni),
-                    ),
-                )
+                # elseif !(bceni in handled_south_bceni)
+                # throw(
+                #     ArgumentError(
+                #         "BCENI type " * repr(bceni) *
+                #         " is not handled. Acceptable types = " *
+                #         repr(handled_south_bceni),
+                #     ),
+                # )
             end
-
-            #
 
             if core_source
                 ret_dict["number_of_core_source_boundaries"] += 1
@@ -388,21 +386,50 @@ function boundary_param_readnml(filename::String)::Dict{Symbol, Dict{Symbol, Any
 
             # remove spaces
             if startswith(line, '&')
-                sub_dir = Symbol(replace(line, "&" => ""))
+                sub_dir = Symbol(uppercase(replace(line, "&" => "")))
                 data[sub_dir] = Dict{Symbol, Any}()
                 working_dict = data[sub_dir]
             end
 
             if contains(line, "=")
                 key_values = split(line, "=")
-                key = Symbol(uppercase(strip(key_values[1])))
+                key_str = strip(key_values[1])
+                multidim = occursin("(", key_str) && occursin(")", key_str)
+                inds = Array{Int64}[]
+                if multidim
+                    key = Symbol(uppercase(split(key_str, "(")[1]))
+                    inds = [
+                        parse(Int64, ind) for
+                        ind ∈ split(split(split(key_str, "(")[2], ")")[1], ",")
+                    ]
+                else
+                    key = Symbol(uppercase(key_str))
+                end
                 if key in supported_fields
                     values = filter(e -> e != "", split(key_values[2], ","))
                     if length(values) == 1
-                        working_dict[key] = fortran_parse(strip(values[1]))
+                        parsed_values = fortran_parse(strip(values[1]))
                     else
-                        working_dict[key] =
-                            [fortran_parse(strip(value)) for value ∈ values]
+                        parsed_values = [fortran_parse(strip(value)) for value ∈ values]
+                    end
+                    if multidim
+                        if key ∉ keys(working_dict)
+                            working_dict[key] =
+                                Array{Any}(undef, inds..., length(values))
+                        else
+                            maxinds = [
+                                max(inds[i], size(working_dict[key], i)) for
+                                i ∈ eachindex(inds)
+                            ]
+                            new_arr = Array{Any}(undef, maxinds..., length(values))
+                            for i ∈ CartesianIndices(working_dict[key])
+                                new_arr[i] = working_dict[key][i]
+                            end
+                            working_dict[key] = new_arr
+                        end
+                        working_dict[key][inds..., :] = parsed_values
+                    else
+                        working_dict[key] = parsed_values
                     end
                 end
             end
