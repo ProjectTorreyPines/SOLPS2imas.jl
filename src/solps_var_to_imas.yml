@@ -5,19 +5,23 @@
 # For choosing an instance of an object in array, use [] for giving index
 # For appending to the object array, use [:]
 # Example:
-# na: ["ion[1].temperature[:].values", 5]translates to ggd[it].ion[1].temperature[end].values
-#    where ggd[it].ion[1].temperature will be resized to add a new last entry
-# grid_subset_index needs to be provided to indicate where the quantity is defined
+#   na: ["edge_profiles.ggd[ggd_ind].ion[1].temperature[:].values", 5]
+#     translates to 
+#   edge_profiles.ggd[it].ion[1].temperature[end].values
+#   where
+#      ggd_ind will be replaced with the corresponding time index it
+#      edge_profiles.ggd[it].ion[1].temperature will be resized to add a new last entry
+#      grid_subset_index (5 in this example) needs to be provided to indicate where the quantity is defined
 
 # In order from SOLPS-ITER_user_manual_2020-03-12.pdf (page 219, A.3 b2cdcv.F)
 
 # --------
 # Page 219
-# na: ["ion[:].density[:].values", 5] # These are not correct as density can be provided over different states of same ion
-# ua: ["ion[:].velocity[:].parallel", 5] # These are not correct as velocity can be provided over different states of same ion
-te: ["electrons.temperature[:].values", 5]
-ti: ["t_i_average[:].values", 5] # atom(ion) temperature is averaged over all species, so only store in t_i_average
-po: ["phi_potential[:].values", 5]
+# na: ["edge_profiles.ggd[ggd_ind].ion[:].density[:].values", 5] # These are not correct as density can be provided over different states of same ion
+# ua: ["edge_profiles.ggd[ggd_ind].ion[:].velocity[:].parallel", 5] # These are not correct as velocity can be provided over different states of same ion
+te: ["edge_profiles.ggd[ggd_ind].electrons.temperature[:].values", 5]
+ti: ["edge_profiles.ggd[ggd_ind].t_i_average[:].values", 5] # atom(ion) temperature is averaged over all species, so only store in t_i_average
+po: ["edge_profiles.ggd[ggd_ind].phi_potential[:].values", 5]
 
 # --------
 # Page 221
@@ -26,10 +30,10 @@ po: ["phi_potential[:].values", 5]
 
 # --------
 # Page 222
-ne: ["electrons.density[:].values", 5]
+ne: ["edge_profiles.ggd[ggd_ind].electrons.density[:].values", 5]
 # ne2 Different weighing, need to look closer later
 # pr, pz ignored for now, seem like derived quantities
-pe: ["electrons.pressure[:].values", 5]
+pe: ["edge_profiles.ggd[ggd_ind].electrons.pressure[:].values", 5]
 # ro, rz mass density of atoms or just ions, IMAS.dd instead stores element atomic mass in ion. TO DO
 # ne2m ignored, derived quantity
 
@@ -42,6 +46,20 @@ pe: ["electrons.pressure[:].values", 5]
 
 # --------
 # Page 391
-ne2d: ["electrons.density[:].values", 5]
-te2d: ["electrons.temperature[:].values", 5]
-ti2d: ["t_i_average[:].values", 5] # atom(ion) temperature is averaged over all species, so only store in t_i_average
+ne2d: ["edge_profiles.ggd[ggd_ind].electrons.density[:].values", 5]
+te2d: ["edge_profiles.ggd[ggd_ind].electrons.temperature[:].values", 5]
+ti2d: ["edge_profiles.ggd[ggd_ind].t_i_average[:].values", 5] # atom(ion) temperature is averaged over all species, so only store in t_i_average
+
+# SOLPS-ITER_User_Manual_20240327.pdf
+# --------
+# Page 391
+edena: ["edge_profiles.ggd[ggd_ind].neutral[:].energy_density_kinetic[:].values", 5]
+edeni: ["edge_profiles.ggd[ggd_ind].ion[:].energy_density_kinetic[:].values", 5]
+edenm: ["edge_profiles.ggd[ggd_ind].ion[:].energy_density_kinetic[:].values", 5]
+pdena: ["edge_profiles.ggd[ggd_ind].neutral[:].density[:].values", 5]
+pdeni: ["edge_profiles.ggd[ggd_ind].ion[:].density[:].values", 5]
+pdenm: ["edge_profiles.ggd[ggd_ind].ion[:].density[:].values", 5]
+
+eneutrad: ["radiation.process[1].ggd[ggd_ind].neutral[:].emissivity[:].values", 5]
+eionrad: ["radiation.process[1].ggd[ggd_ind].ion[:].emissivity[:].values", 5]
+emolrad: ["radiation.process[1].ggd[ggd_ind].ion[:].emissivity[:].values", 5]

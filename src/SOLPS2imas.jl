@@ -42,9 +42,9 @@ dict2prop!(obj, dict) =
 solps_var_to_imas = YAML_load_file("$(@__DIR__)/solps_var_to_imas.yml")
 """
     val_obj(
-        ggd::IMASdd.edge_profiles__ggd,
+        ids::IMASdd.dd,
         var::String,
-        grid_ggd_index::Int;
+        indices::Dict{Symbol, Int}=Dict{Symbol, Int}();
         gsi_ch::Dict{Int, Int}=Dict{Int, Int}(),
     )
 
@@ -54,9 +54,9 @@ Optionally, a mapping of possibly changes in grid_subset_index can be provided a
 a dictionary gsi_ch.
 """
 function val_obj(
-    ggd::IMASdd.edge_profiles__ggd,
+    ids::IMASdd.dd,
     var::String,
-    grid_ggd_index::Int;
+    indices::Dict{Symbol, Int}=Dict{Symbol, Int}();
     gsi_ch::Dict{Int, Int}=Dict{Int, Int}(),
 )
     if var ∉ keys(solps_var_to_imas)
@@ -66,7 +66,7 @@ function val_obj(
         if gsi ∈ gsi_ch.keys
             gsi = gsi_ch[gsi]
         end
-        parent = ggd
+        parent = ids
         path_fields = split(path, ".")
         for pf ∈ path_fields[1:end-1]
             if occursin("[", pf)
@@ -75,6 +75,8 @@ function val_obj(
                 if ind_str == ":"
                     resize!(parent, length(parent) + 1)
                     parent = parent[end]
+                elseif occursin("ind", ind_str)
+                    parent = parent[indices[Symbol(ind_str)]]
                 else
                     ind = parse(Int, ind_str)
                     if length(parent) < ind
@@ -87,7 +89,7 @@ function val_obj(
             end
             if :grid_subset_index ∈ fieldnames(typeof(parent))
                 parent.grid_subset_index = gsi
-                parent.grid_index = grid_ggd_index
+                parent.grid_index = indices[:grid_ggd_ind]
             end
         end
         return parent, Symbol(path_fields[end])
@@ -169,7 +171,7 @@ end
         b2mn::String="",
         fort::Tuple{String, String, String}=("", "", ""),
         fort_tol::Float64=1e-6,
-        b2_parameters::Tuple{String, String, String, String,}=("", "", "", ""),
+        b2_boundary_parameters::String="",
         load_bb::Bool=false,
     )::IMASdd.dd
 
@@ -187,7 +189,7 @@ function solps2imas(
     b2mn::String="",
     fort::Tuple{String, String, String}=("", "", ""),
     fort_tol::Float64=1e-6,
-    b2_parameters::Tuple{String, String, String, String}=("", "", "", ""),
+    b2_boundary_parameters::String="",
     load_bb::Bool=true,
     ids::IMASdd.dd=IMASdd.dd(),
 )::IMASdd.dd
@@ -210,6 +212,7 @@ function solps2imas(
     ncell = nx * ny
     crx = gmtry["data"]["crx"]
     cry = gmtry["data"]["cry"]
+    vol = gmtry["data"]["vol"]
     cut_keys = ["leftcut", "rightcut", "bottomcut", "topcut"]
     cuts_found = cut_keys ⊆ keys(gmtry["data"])
     if cuts_found
@@ -268,23 +271,10 @@ function solps2imas(
             subset_otarget = get_grid_subset(grid_ggd, 13)
             subset_itarget = get_grid_subset(grid_ggd, 14)
 
-            # Resizing objects to hold cell geometry data
-            # Should be fewer than this many points, but this way we won't under-fill
-            # nodes = resize!(o1.object, ncell * 4)  # Nodes (1D)
-            # edges = resize!(o2.object, ncell * 4)  # Edges (2D)
             nodes = o1.object                  # Nodes (1D)
             edges = o2.object                  # Edges (2D)
             cells = resize!(o3.object, ncell)  # Cells (3D)
 
-            # Initialize geometry for 1D objects(nodes), nodes for 2D objects(edges)
-            # for i ∈ 1:(ncell*4)
-            #     nodes[i].geometry = [0.0, 0.0]
-            #     edges[i].nodes = [0, 0]
-            #     resize!(edges[i].boundary, 2)
-            #     for bnd ∈ edges[i].boundary
-            #         bnd.neighbours = Int[]
-            #     end
-            # end
             # Initialize nodes and boundaries for cells
             for i ∈ 1:(ncell)
                 cells[i].nodes = [0, 0, 0, 0]
@@ -317,6 +307,7 @@ function solps2imas(
                             resize!(nodes, j)
                             nodes[j].geometry =
                                 [crx[1, icorner, iy, ix], cry[1, icorner, iy, ix]]
+                            nodes[j].measure = 2 * π * crx[1, icorner, iy, ix]
                             cells[ic].nodes[icorner] = j
                             add_subset_element!(subset_nodes, sn, 1, j)
                             if cuts_found && xpoints_nodes[it][1] == nodes[j].geometry
@@ -327,6 +318,7 @@ function solps2imas(
                             cells[ic].nodes[icorner] = i_existing[1]
                         end
                     end
+                    cells[ic].measure = vol[1, iy, ix]
                     # Adding edges (faces with toroidal elongation)
                     # Adding same edges as boundary to cells
                     for (boundary_ind, edge_pair) ∈ chosen_edge_order
@@ -342,8 +334,7 @@ function solps2imas(
                             for (ii, edge_bnd) ∈ enumerate(edges[edge_ind].boundary)
                                 edge_bnd.index = edge_nodes[ii]
                             end
-                            edges[edge_ind].measure =
-                                distance_between_nodes(nodes, edge_nodes)
+                            edges[edge_ind].measure = face_area(nodes, edge_nodes)
                             cells[ic].boundary[boundary_ind].index = edge_ind
                             add_subset_element!(subset_faces, sn, 2, edge_ind)
                             add_subset_element!(
@@ -678,8 +669,7 @@ function solps2imas(
                     for (ii, edge_bnd) ∈ enumerate(edges[this_edge_ind].boundary)
                         edge_bnd.index = tri_edge_nodes[ii]
                     end
-                    edges[this_edge_ind].measure =
-                        distance_between_nodes(nodes, tri_edge_nodes)
+                    edges[this_edge_ind].measure = face_area(nodes, tri_edge_nodes)
                     add_subset_element!(subset_faces, 1, 2, this_edge_ind)
                 else
                     this_edge_ind = existing_edge_ind
@@ -729,14 +719,26 @@ function solps2imas(
     b2 = read_b2_output(b2output)
     # Add grid_ggd array equal to number of time steps
     resize!(ids.edge_profiles.ggd, b2["dim"]["time"])
+    resize!(ids.radiation.process, 1)
+    resize!(ids.radiation.process[1].ggd, b2["dim"]["time"])
+    resize!(ids.radiation.grid_ggd, length(ids.edge_profiles.grid_ggd))
+    for ii ∈ eachindex(ids.radiation.grid_ggd)
+        ids.radiation.grid_ggd[ii].path = "edge_profiles/grid_ggd(" * string(ii) * ")"
+    end
+    indices = Dict{Symbol, Int}(:grid_ggd_ind => gsdesc["identifier"]["index"])
     for it ∈ 1:b2["dim"]["time"]
-        ggd = ids.edge_profiles.ggd[it]
-        ggd.time = Float64.(b2["data"]["timesa"][it])
-        grid_ggd_ind = gsdesc["identifier"]["index"]
+        indices[:ggd_ind] = it
         for (key, data) ∈ b2["data"]
-            parent, prop = val_obj(ggd, key, grid_ggd_ind; gsi_ch=gsi_ch)
+            parent, prop = val_obj(ids, key, indices; gsi_ch)
             if !isnothing(parent)
-                setproperty!(parent, prop, data_xytoc(data[it, :, :]; nx=nx))
+                if key ∈ ["eneutrad", "emolrad", "eionrad"]
+                    for spi ∈ eachindex(size(data, 2))
+                        rad_den = data[it, spi, :, :] ./ gmtry["data"]["vol"][1, :, :]
+                        setproperty!(parent, prop, data_xytoc(rad_den; nx))
+                    end
+                else
+                    setproperty!(parent, prop, data_xytoc(data[it, :, :]; nx))
+                end
             end
         end
         # Done with filling data for this time step
@@ -784,7 +786,7 @@ function solps2imas(
     end
 
     # Add summary data from b2.*.parameters files
-    load_summary_data!(ids, b2_parameters)
+    load_summary_data!(ids; b2_boundary_parameters)
 
     return ids
 end

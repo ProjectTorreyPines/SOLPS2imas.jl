@@ -16,11 +16,15 @@ function read_b2time_output(filename::String)::Dict{String, Dict{String, Any}}
     dim_order = (
         "time",
         "ns",
+        "natmi",
+        "nioni",
+        "nmoli",
         "nstrat",
         "nc",
         "ndir",
         "ny", "nybl", "nybr", "nya", "nyi",
         "nx", "nxbl", "nxbr", "nxa", "nxi",
+        "ntrii",
     )
     ret_dict = Dict("dim" => Dict(), "data" => Dict())
     ds = Dataset(filename)
@@ -44,6 +48,7 @@ function read_b2time_output(filename::String)::Dict{String, Dict{String, Any}}
             catch e
                 println("Error in reading ", key)
                 showerror(stdout, e)
+                println()
                 println("Continuing by ignoring this field")
             end
         end
