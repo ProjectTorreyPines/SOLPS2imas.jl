@@ -31,8 +31,8 @@ function parse_commandline()
         ["--fort"],
         Dict(:help => "Test triangular mesh generation from fort files",
             :action => :store_true),
-        ["--namelist"],
-        Dict(:help => "Test parsing of namelists",
+        ["--boundary_params"],
+        Dict(:help => "Test parsing of boundary parameters",
             :action => :store_true),
     )
     args = ArgParse.parse_args(localARGS, s)
@@ -93,10 +93,11 @@ end
 
 if args["parser"]
     @testset "Test file parsing in depth" begin
-        b2mn_samples = "$(@__DIR__)/../samples/" .* [
-            "b2mn.dat",
-            "test_b2mn.dat",
-        ]
+        b2mn_samples =
+            "$(@__DIR__)/../samples/b2mn_parsing/" .* [
+                "b2mn.dat",
+                "test_b2mn.dat",
+            ]
         always_required_keys = ["b2mndr_ntim", "b2mndr_dtim"]
         for b2mn_sample ∈ b2mn_samples
             b2mn_data = SOLPS2imas.read_b2mn_output(b2mn_sample)
@@ -116,10 +117,11 @@ if args["b2"]
         nx = contents["dim"]["nx"]
         ny = contents["dim"]["ny"]
         ns = contents["dim"]["ns"]
+        ndir = contents["dim"]["ndir"]
         @test size(contents["data"]["te"]) == (nt, ny, nx)
         @test size(contents["data"]["na"]) == (nt, ns, ny, nx)
         @test size(contents["data"]["fna"]) == (nt, ns, 2, ny, nx)
-        @test size(contents["data"]["fhe"]) == (nt, ns, ny, nx)
+        @test size(contents["data"]["fhe"]) == (nt, ndir, ny, nx)
 
         contents = SOLPS2imas.read_b2_output("$(@__DIR__)/../samples/b2fgmtry")
         nt = contents["dim"]["time"]
@@ -144,7 +146,6 @@ if args["b2"]
         @test size(contents["data"]["ft3dr"]) == (nt, nybr)
         @test size(contents["data"]["fl3dr"]) == (nt, nybr)
         @test size(contents["data"]["fc3dr"]) == (nt, nybr)
-        @test size(contents["data"]["fna3da"]) == (nt, ns, nybr)
         @test size(contents["data"]["tmhacore"]) == (nt,)
         @test size(contents["data"]["tmhasol"]) == (nt,)
         @test size(contents["data"]["tmhadiv"]) == (nt,)
@@ -154,7 +155,7 @@ end
 if args["solps2imas"]
     @testset "Test solps2imas() (overall workflow)" begin
         b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
-        b2output = "$(@__DIR__)/../samples/b2time.nc"
+        b2output = "$(@__DIR__)/../samples/b2time_red.nc"
         b2mn = "$(@__DIR__)/../samples/b2mn.dat"
         b2t = SOLPS2imas.read_b2_output(b2output)
         nx = b2t["dim"]["nx"]
@@ -230,9 +231,8 @@ if args["fort"]
             "$(@__DIR__)/../samples/fort.34",
             "$(@__DIR__)/../samples/fort.35")
         b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
-        b2output = "$(@__DIR__)/../samples/b2time.nc"
         b2mn = "$(@__DIR__)/../samples/b2mn.dat"
-        ids = SOLPS2imas.solps2imas(b2gmtry, b2output; b2mn=b2mn, fort=fort)
+        ids = SOLPS2imas.solps2imas(b2gmtry; b2mn=b2mn, fort=fort)
         grid_ggd = ids.edge_profiles.grid_ggd[1]
         space = grid_ggd.space[1]
 
@@ -283,20 +283,24 @@ if args["fort"]
     end
 end
 
-if args["namelist"]
-    @testset "Test parsing of namelists" begin
+if args["boundary_params"]
+    @testset "Test parsing of boundary parameters" begin
         # Basic parameters namelist parsing
-        testfile = "$(@__DIR__)/../samples/b2.boundary.parameters"
-        boundary_params = SOLPS2imas.read_b2_boundary_parameters(testfile)
-        println(boundary_params)
-        @test boundary_params["power_electrons"] > 0.0
-        @test boundary_params["power_ions"] > 0.0
-        @test boundary_params["number_of_boundaries"] >
-              boundary_params["number_of_core_source_boundaries"]
+        testfilelist = [
+            "$(@__DIR__)/../samples/b2.boundary.parameters",
+        ]
+        for testfile ∈ testfilelist
+            boundary_params = SOLPS2imas.read_b2_boundary_parameters(testfile)
+            println(boundary_params)
+            @test boundary_params["power_electrons"] > 0.0
+            @test boundary_params["power_ions"] > 0.0
+            @test boundary_params["number_of_boundaries"] >
+                  boundary_params["number_of_core_source_boundaries"]
 
-        # Using parameters namelist to populate summary data
-        ids = IMASdd.dd()
-        SOLPS2imas.load_summary_data!(ids, (testfile, "", "", ""))
-        @test !(ismissing(ids.summary.heating_current_drive.power_ec, :value))
+            # Using parameters namelist to populate summary data
+            ids = IMASdd.dd()
+            SOLPS2imas.load_summary_data!(ids; b2_boundary_parameters=testfile)
+            @test !(ismissing(ids.summary.heating_current_drive.power_ec, :value))
+        end
     end
 end

@@ -1,0 +1,12 @@
+md5: c64f81f1a9aab6e9333cad2448be6f21
+frozen: true
+deps:
+- path: SPARC_Lore_Ne_Act/run_05_0.3_td_to_0_to_1e20/b2time_red.nc
+  repo:
+    url: git@github.com:ProjectTorreyPines/SOLPSTestSamples.git
+    rev_lock: 5a58e937b6481aef407243b358730eed09ae690b
+outs:
+- md5: 25d6824c1bf7601cfbc36f9a7a7628ac
+  size: 5209290
+  hash: md5
+  path: b2time_red.nc

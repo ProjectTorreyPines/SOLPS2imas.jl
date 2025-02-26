@@ -1,12 +1,12 @@
-md5: bcf05d7d7b6d91ef1025c0dc018c4bbf
+md5: de94b6d6fc5c1c03151cdab31f25b51f
 frozen: true
 deps:
-- path: ITER_Lore_2296_00000/baserun/b2fgmtry
+- path: SPARC_Lore_Ne_Act/baserun/b2fgmtry
   repo:
     url: git@github.com:ProjectTorreyPines/SOLPSTestSamples.git
-    rev_lock: df499f1275428ec06175c48dc4af6ecbd5ec6117
+    rev_lock: 5a58e937b6481aef407243b358730eed09ae690b
 outs:
-- md5: 6589953daeef49b21744d159af970cbb
-  size: 2908856
+- md5: 0c62a8faa72aaf37b5fa2bfec87316f0
+  size: 4358815
   hash: md5
   path: b2fgmtry

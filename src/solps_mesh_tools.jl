@@ -105,6 +105,20 @@ function distance_between_nodes(nodes::edges_nodes_type, node_inds::Array{Int, 1
     return √(sum((nodes[node_inds[1]].geometry - nodes[node_inds[2]].geometry) .^ 2))
 end
 
+function face_area(nodes::edges_nodes_type, node_inds::Array{Int, 1})::Float64
+    r₁, z₁ = nodes[node_inds[1]].geometry
+    r₂, z₂ = nodes[node_inds[2]].geometry
+    if r₁ == r₂
+        return 2 * π * abs(r₁) * abs(z₁ - z₂)
+    else
+        h₁ = r₁ * (z₁ - z₂) / (r₁ - r₂)
+        h₂ = r₂ * (z₁ - z₂) / (r₁ - r₂)
+        A₁ = π * abs(r₁) * (abs(r₁) + √(h₁^2 + r₁^2))
+        A₂ = π * abs(r₂) * (abs(r₂) + √(h₂^2 + r₂^2))
+        return abs(A₁ - A₂)
+    end
+end
+
 """
     neighbour_inds(
         ic::Int;
