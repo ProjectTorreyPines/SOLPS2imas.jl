@@ -1,0 +1,12 @@
+md5: 45bd5252c2293760b2999f738f445015
+frozen: true
+deps:
+- path: SPARC_Lore_Ne_Act/baserun/fort.35
+  repo:
+    url: git@github.com:ProjectTorreyPines/SOLPSTestSamples.git
+    rev_lock: 5a58e937b6481aef407243b358730eed09ae690b
+outs:
+- md5: 300caddf8f6ca44e80968dc003bf673a
+  size: 698362
+  hash: md5
+  path: fort.35
