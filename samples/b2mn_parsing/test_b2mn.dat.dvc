@@ -1,12 +1,12 @@
-md5: de94b6d6fc5c1c03151cdab31f25b51f
+md5: 6c424503e395b34ebd56229dac702181
 frozen: true
 deps:
-- path: SPARC_Lore_Ne_Act/baserun/b2fgmtry
+- path: mock_test_data/test_b2mn.dat
   repo:
     url: git@github.com:ProjectTorreyPines/SOLPSTestSamples.git
     rev_lock: 5a58e937b6481aef407243b358730eed09ae690b
 outs:
-- md5: 0c62a8faa72aaf37b5fa2bfec87316f0
-  size: 4358815
+- md5: c93d7bb916f673d4d18ccbc10de55455
+  size: 3169
   hash: md5
-  path: b2fgmtry
+  path: test_b2mn.dat

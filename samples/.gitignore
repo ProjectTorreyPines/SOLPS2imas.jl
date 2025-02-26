@@ -1,10 +1,8 @@
 /b2fgmtry
 /b2fstate
-/b2time.nc
-/b2mn.dat
-/b2mn.dat.json
-/test_b2mn.dat
-/test_b2mn.dat.json
 /fort.33
 /fort.34
 /fort.35
+/b2mn.dat
+/b2.boundary.parameters
+/b2time_red.nc
