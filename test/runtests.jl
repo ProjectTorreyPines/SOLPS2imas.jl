@@ -153,9 +153,9 @@ end
 
 if args["solps2imas"]
     @testset "Test solps2imas() (overall workflow)" begin
-        b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
-        b2output = "$(@__DIR__)/../samples/b2time.nc"
-        b2mn = "$(@__DIR__)/../samples/b2mn.dat"
+        b2gmtry = "$(@__DIR__)/../samples/SPARC_Lore_Ne_Act/b2fgmtry"
+        b2output = "$(@__DIR__)/../samples/SPARC_Lore_Ne_Act/b2time_red.nc"
+        b2mn = "$(@__DIR__)/../samples/SPARC_Lore_Ne_Act/b2mn.dat"
         b2t = SOLPS2imas.read_b2_output(b2output)
         nx = b2t["dim"]["nx"]
         print("solps2imas() time: ")

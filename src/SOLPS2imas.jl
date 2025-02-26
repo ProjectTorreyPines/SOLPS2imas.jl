@@ -488,50 +488,49 @@ function solps2imas(
                         end
                     end
                 end
-                core_boundary_elements = get_subset_boundary(space, subset_core)
-                sol_boundary_elements = get_subset_boundary(space, subset_sol)
-                idr_boundary_elements = get_subset_boundary(space, subset_idr)
-                odr_boundary_elements = get_subset_boundary(space, subset_odr)
+                core_bdry = get_subset_boundary(space, subset_core)
+                sol_bdry = get_subset_boundary(space, subset_sol)
+                idr_bdry = get_subset_boundary(space, subset_idr)
+                odr_bdry = get_subset_boundary(space, subset_odr)
                 subset_pfrcut.element =
-                    subset_do(intersect, idr_boundary_elements, odr_boundary_elements)
+                    subset_do(intersect, idr_bdry, odr_bdry).element
                 subset_corebnd.element =
-                    subset_do(setdiff, core_boundary_elements, sol_boundary_elements)
-                subset_separatrix.element = subset_do(intersect, sol_boundary_elements,
-                    subset_do(union, core_boundary_elements,
-                        odr_boundary_elements,
-                        idr_boundary_elements))
+                    subset_do(setdiff, core_bdry, sol_bdry).element
+                subset_separatrix.element =
+                    subset_do(intersect, sol_bdry,
+                        subset_do(union, core_bdry, odr_bdry, idr_bdry)).element
                 if !isnothing(jxa)
-                    subset_ompsep.element = subset_do(
-                        intersect,
-                        subset_separatrix.element,
-                        subset_omp.element;
-                        space,
-                        use_nodes=true,
-                    )
+                    subset_ompsep.element =
+                        subset_do(
+                            intersect,
+                            subset_separatrix,
+                            subset_omp;
+                            use_nodes=true,
+                        ).element
                 end
                 if !isnothing(jxi)
-                    subset_impsep.element = subset_do(
-                        intersect,
-                        subset_separatrix.element,
-                        subset_imp.element;
-                        space,
-                        use_nodes=true,
-                    )
+                    subset_impsep.element =
+                        subset_do(
+                            intersect,
+                            subset_separatrix,
+                            subset_imp;
+                            use_nodes=true,
+                        ).element
                 end
-                subset_otsep.element = subset_do(
-                    intersect,
-                    subset_separatrix.element,
-                    subset_otarget.element;
-                    space,
-                    use_nodes=true,
-                )
-                subset_itsep.element = subset_do(
-                    intersect,
-                    subset_separatrix.element,
-                    subset_itarget.element;
-                    space,
-                    use_nodes=true,
-                )
+                subset_otsep.element =
+                    subset_do(
+                        intersect,
+                        subset_separatrix,
+                        subset_otarget;
+                        use_nodes=true,
+                    ).element
+                subset_itsep.element =
+                    subset_do(
+                        intersect,
+                        subset_separatrix,
+                        subset_itarget;
+                        use_nodes=true,
+                    ).element
             end
         end  # End of setting up space
     end
@@ -701,14 +700,13 @@ function solps2imas(
         end
 
         subset_comnodes.element =
-            subset_do(intersect, subset_b25nodes.element, subset_trinodes.element)
+            subset_do(intersect, subset_b25nodes, subset_trinodes).element
         subset_comfaces.element =
-            subset_do(intersect, subset_b25faces.element, subset_trifaces.element)
-
+            subset_do(intersect, subset_b25faces, subset_trifaces).element
         subset_extnodes.element =
-            subset_do(setdiff, subset_trinodes.element, subset_b25nodes.element)
+            subset_do(setdiff, subset_trinodes, subset_b25nodes).element
         subset_extfaces.element =
-            subset_do(setdiff, subset_trifaces.element, subset_b25faces.element)
+            subset_do(setdiff, subset_trifaces, subset_b25faces).element
     end
 
     if b2output == ""
