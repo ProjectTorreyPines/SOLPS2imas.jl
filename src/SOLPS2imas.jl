@@ -726,6 +726,7 @@ function solps2imas(
     indices = Dict{Symbol, Int}(:grid_ggd_ind => gsdesc["identifier"]["index"])
     for it ∈ 1:b2["dim"]["time"]
         indices[:ggd_ind] = it
+        ids.edge_profiles.ggd[it].time = Float64.(b2["data"]["timesa"][it])
         for (key, data) ∈ b2["data"]
             parent, prop = val_obj(ids, key, indices; gsi_ch)
             if !isnothing(parent)
