@@ -70,7 +70,7 @@ if args["ind"]
             end
         end
 
-        for ic ∈ 1:nx*ny
+        for ic ∈ 1:(nx*ny)
             cic = SOLPS2imas.xytoc(SOLPS2imas.ctoxy(ic; nx=nx)...; nx=nx)
             if cic != ic
                 ix, iy = SOLPS2imas.ctoxy(ic; nx=nx)

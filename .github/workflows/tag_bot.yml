@@ -11,3 +11,4 @@ jobs:
   TagBot:
     uses: ProjectTorreyPines/GitHubActionsWorkflows/.github/workflows/tag_bot.yml@master
     secrets: inherit
+    # This action uses JuliaRegistries/TagBot to tag the registered version on Github.

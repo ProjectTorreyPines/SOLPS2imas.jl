@@ -180,7 +180,7 @@ function read_b2_output(filename::String)::Dict{String, Dict{String, Any}}
             if arraytype == "char"
                 contents[tag] = array_line
             else
-                contents[tag][j:j+array_inc-1] = array_line
+                contents[tag][j:(j+array_inc-1)] = array_line
             end
             j += array_inc
         end
@@ -218,7 +218,7 @@ function extract_geometry(gmtry::Dict{String, Any})::Dict{String, Dict{String, A
         elseif k ∈ ["leftcut", "bottomcut", "rightcut", "topcut"]
             ret_dict["data"][k] = Array([gmtry[k][1]])
         elseif k ∈ ["leftcut2", "bottomcut2", "rightcut2", "topcut2"]
-            ret_dict["data"][k] = Array([gmtry[k[1:end-1]][1], gmtry[k][1]])
+            ret_dict["data"][k] = Array([gmtry[k[1:(end-1)]][1], gmtry[k][1]])
         elseif length(gmtry[k]) == nx * ny
             ret_dict["data"][k] = permutedims(reshape(gmtry[k], (nx, ny, 1)), (3, 2, 1))
         elseif k ∉ keys(ret_dict["dim"])

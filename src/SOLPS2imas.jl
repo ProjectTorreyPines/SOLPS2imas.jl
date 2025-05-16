@@ -68,10 +68,10 @@ function val_obj(
         end
         parent = ids
         path_fields = split(path, ".")
-        for pf ∈ path_fields[1:end-1]
+        for pf ∈ path_fields[1:(end-1)]
             if occursin("[", pf)
-                parent = getfield(parent, Symbol(pf[1:findfirst('[', pf)-1]))
-                ind_str = pf[findfirst('[', pf)+1:findfirst(']', pf)-1]
+                parent = getfield(parent, Symbol(pf[1:(findfirst('[', pf)-1)]))
+                ind_str = pf[(findfirst('[', pf)+1):(findfirst(']', pf)-1)]
                 if ind_str == ":"
                     resize!(parent, length(parent) + 1)
                     parent = parent[end]
@@ -622,7 +622,7 @@ function solps2imas(
         f33 = map(x -> typeof(x) == Float64 ? x : missing, f33[2:end, :])
         fnodeXnodeY = collect(skipmissing(vec(f33'))) * 1e-2 # cm to m
         fnodeX = fnodeXnodeY[1:fnnodes]
-        fnodeY = fnodeXnodeY[fnnodes+1:end]
+        fnodeY = fnodeXnodeY[(fnnodes+1):end]
         fnode_inds = Array{Int}(undef, fnnodes)
         for fnind ∈ 1:fnnodes
             i_existing = search_point(
