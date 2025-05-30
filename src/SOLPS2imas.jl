@@ -4,8 +4,8 @@ using IMASdd: IMASdd
 using NCDatasets: Dataset, dimnames
 using YAML: load_file as YAML_load_file
 using DelimitedFiles: readdlm
-import IMASggd: add_subset_element!, get_grid_subset, get_subset_boundary,
-    get_subset_space, subset_do, deepcopy_subset
+import IMASggd: add_subset_element!, get_grid_subset, get_subset_boundary, subset_do,
+    deepcopy_subset
 # import Fortran90Namelists: readnml
 
 export solps2imas, load_summary_data!
