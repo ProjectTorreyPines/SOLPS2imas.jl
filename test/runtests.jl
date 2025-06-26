@@ -1,51 +1,10 @@
-using SOLPS2imas: SOLPS2imas
+using SOLPS2imas:
+    SOLPS2imas, IMASdd, YAML_load_file, get_grid_subset, read_b2_boundary_parameters
 using Test
-using YAML: load_file as YAML_load_file
-using ArgParse: ArgParse
-using IMASdd: IMASdd
-import SOLPS2imas: get_grid_subset, read_b2_boundary_parameters
 
 allowed_rtol = 1e-4
 
-# To run a subset of tests while executing via > include("test/runtests.jl"), define newARGS. For example:
-#   newARGS = String["--ind", "--b2]
-# to run just the ind and b2 test sets.
-
-function parse_commandline()
-    localARGS = @isdefined(newARGS) ? newARGS : ARGS  # Thanks https://stackoverflow.com/a/44978474/6605826
-    s = ArgParse.ArgParseSettings(; description="Run tests. Default is all tests.")
-
-    ArgParse.add_arg_table!(s,
-        ["--ind"],
-        Dict(:help => "Test index conversions",
-            :action => :store_true),
-        ["--b2"],
-        Dict(:help => "Test read_b2_output()",
-            :action => :store_true),
-        ["--solps2imas"],
-        Dict(:help => "Test solps2imas (overall workflow)",
-            :action => :store_true),
-        ["--parser"],
-        Dict(:help => "Stress test file parsing (other than b2 output files)",
-            :action => :store_true),
-        ["--fort"],
-        Dict(:help => "Test triangular mesh generation from fort files",
-            :action => :store_true),
-        ["--boundary_params"],
-        Dict(:help => "Test parsing of boundary parameters",
-            :action => :store_true),
-    )
-    args = ArgParse.parse_args(localARGS, s)
-    if !any(values(args)) # If no flags are set, run all tests
-        for k ∈ keys(args)
-            args[k] = true
-        end
-    end
-    return args
-end
-args = parse_commandline()
-
-if args["ind"]
+if isempty(ARGS) || "ind" in ARGS
     @testset "Test index conversions" begin
         nx = 92
         ny = 38
@@ -91,7 +50,7 @@ if args["ind"]
     end
 end
 
-if args["parser"]
+if isempty(ARGS) || "parser" in ARGS
     @testset "Test file parsing in depth" begin
         b2mn_samples =
             "$(@__DIR__)/../samples/b2mn_parsing/" .* [
@@ -110,7 +69,7 @@ if args["parser"]
     end
 end
 
-if args["b2"]
+if isempty(ARGS) || "b2" in ARGS
     @testset "Test read_b2_output" begin
         contents = SOLPS2imas.read_b2_output("$(@__DIR__)/../samples/b2fstate")
         nt = contents["dim"]["time"]
@@ -152,7 +111,7 @@ if args["b2"]
     end
 end
 
-if args["solps2imas"]
+if isempty(ARGS) || "solps2imas" in ARGS
     @testset "Test solps2imas() (overall workflow)" begin
         b2gmtry = "$(@__DIR__)/../samples/b2fgmtry"
         b2output = "$(@__DIR__)/../samples/b2time_red.nc"
@@ -224,7 +183,7 @@ if args["solps2imas"]
     end
 end
 
-if args["fort"]
+if isempty(ARGS) || "fort" in ARGS
     @testset "Test triangular mesh generation from fort files" begin
         fort = (
             "$(@__DIR__)/../samples/fort.33",
@@ -283,7 +242,7 @@ if args["fort"]
     end
 end
 
-if args["boundary_params"]
+if isempty(ARGS) || "boundary" in ARGS
     @testset "Test parsing of boundary parameters" begin
         # Basic parameters namelist parsing
         testfilelist = [
