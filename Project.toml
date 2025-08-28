@@ -12,7 +12,7 @@ YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
 [compat]
 DelimitedFiles = "1.9.1"
-IMASdd = "2, 3, 4, 5, 6, 7"
+IMASdd = "2, 3, 4, 5, 6, 7, 8"
 IMASggd = "3.1"
 NCDatasets = "0.14.4"
 YAML = "0.4.11"
