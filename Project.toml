@@ -1,7 +1,7 @@
 name = "SOLPS2imas"
 uuid = "09becab6-0636-4c23-a92a-2b3723265c31"
 authors = ["David Eldon <eldond@fusion.gat.com>"]
-version = "2.2.5"
+version = "2.2.6"
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
